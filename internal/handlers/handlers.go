@@ -13,7 +13,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"text/template"
+	"html/template"
 	"time"
 
 	"github.com/nicksnyder/go-i18n/v2/i18n"
@@ -21,6 +21,7 @@ import (
 	"server/internal/config"
 	appi18n "server/internal/i18n"
 	"server/internal/icons"
+	"server/internal/logging"
 	"server/internal/models"
 	"server/internal/services"
 	"server/internal/traefik"
@@ -55,7 +56,6 @@ func GetVersionInfo() models.VersionInfo {
 // --- Template Handling ---
 
 var (
-	htmlTemplate   []byte
 	htmlOnce       sync.Once
 	parsedTemplate *template.Template
 )
@@ -64,11 +64,10 @@ var (
 // The template is parsed with i18n support via a "T" function that accepts a localizer.
 func LoadHTMLTemplate(templatePath string) {
 	htmlOnce.Do(func() {
-		var err error
-		templatePath := filepath.Join(templatePath, "index.html")
-		htmlTemplate, err = os.ReadFile(templatePath)
+		templateFilePath := filepath.Join(templatePath, "index.html")
+		data, err := os.ReadFile(templateFilePath)
 		if err != nil {
-			log.Fatalf("FATAL: Could not read index.html template at %s: %v", templatePath, err)
+			log.Fatalf("FATAL: Could not read index.html template at %s: %v", templateFilePath, err)
 		}
 		// Parse template once and register a T function that expects a *i18n.Localizer
 		// as first argument. The handler will pass the request-local Localizer via
@@ -84,12 +83,26 @@ func LoadHTMLTemplate(templatePath string) {
 				}
 				return msg
 			},
-		}).Parse(string(htmlTemplate))
+		}).Parse(string(data))
 
 		if err != nil {
 			log.Fatalf("FATAL: Could not parse index.html: %v", err)
 		}
 		parsedTemplate = tmpl
+	})
+}
+
+// --- Security Middleware ---
+
+// SecurityHeaders wraps an http.Handler to add security headers to all responses.
+func SecurityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		w.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; font-src 'self' https://fonts.gstatic.com; img-src 'self' https: data:; connect-src 'self'")
+		next.ServeHTTP(w, r)
 	})
 }
 
@@ -181,7 +194,9 @@ func ServicesHandler(w http.ResponseWriter, r *http.Request) {
 	})
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(finalServices)
+	if err := json.NewEncoder(w).Encode(finalServices); err != nil {
+		log.Printf("ERROR: Failed to encode services response: %v", err)
+	}
 }
 
 // HealthHandler performs health checks and returns the status.
@@ -265,14 +280,10 @@ func StatusHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(status)
-}
-
-// --- Helper Functions ---
-
-// debugf logs a message only if LOG_LEVEL is set to "debug".
-func debugf(format string, v ...interface{}) {
-	if config.GetLogLevel() == "debug" {
-		log.Printf("DEBUG: "+format, v...)
+	if err := json.NewEncoder(w).Encode(status); err != nil {
+		log.Printf("ERROR: Failed to encode status response: %v", err)
 	}
 }
+
+// debugf is a convenience alias for logging.Debugf.
+var debugf = logging.Debugf

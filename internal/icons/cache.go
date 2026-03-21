@@ -5,8 +5,10 @@ package icons
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
+	"sync/atomic"
 	"os"
 	"path/filepath"
 	"sort"
@@ -78,7 +80,10 @@ func GetSelfHstIconNames() ([]models.SelfHstIcon, error) {
 	}
 
 	log.Println("Refreshing selfh.st icon cache from index.json...")
-	req, _ := http.NewRequestWithContext(context.Background(), "GET", selfhstAPIURL, nil)
+	req, err := http.NewRequestWithContext(context.Background(), "GET", selfhstAPIURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
 	req.Header.Set("User-Agent", "TraLa-Dashboard-App")
 
 	resp, err := externalHTTPClient.Do(req)
@@ -86,6 +91,10 @@ func GetSelfHstIconNames() ([]models.SelfHstIcon, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("selfh.st icons API returned status %d", resp.StatusCode)
+	}
 
 	var icons []models.SelfHstIcon
 	if err := json.NewDecoder(resp.Body).Decode(&icons); err != nil {
@@ -129,7 +138,10 @@ func GetSelfHstAppTags() ([]models.SelfHstApp, error) {
 	}
 
 	log.Println("Refreshing Selfh.st apps cache from trala.json...")
-	req, _ := http.NewRequestWithContext(context.Background(), "GET", selfhstAppsURL, nil)
+	req, err := http.NewRequestWithContext(context.Background(), "GET", selfhstAppsURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
 	req.Header.Set("User-Agent", "TraLa-Dashboard-App")
 
 	resp, err := externalHTTPClient.Do(req)
@@ -137,6 +149,10 @@ func GetSelfHstAppTags() ([]models.SelfHstApp, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("selfh.st apps API returned status %d", resp.StatusCode)
+	}
 
 	var data []models.SelfHstApp
 	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
@@ -274,16 +290,13 @@ func debugf(format string, v ...interface{}) {
 
 // isDebugLogLevel checks if the log level is set to debug
 func isDebugLogLevel() bool {
-	// This will be implemented by checking the config package
-	// We avoid importing config directly to prevent circular dependencies
-	// The log level check is done via a callback set during initialization
-	return debugLogEnabled
+	return debugLogEnabled.Load()
 }
 
-// debugLogEnabled is set by SetDebugMode
-var debugLogEnabled = false
+// debugLogEnabled is set by SetDebugMode (atomic for concurrency safety)
+var debugLogEnabled atomic.Bool
 
 // SetDebugMode enables or disables debug logging for the icons package.
 func SetDebugMode(enabled bool) {
-	debugLogEnabled = enabled
+	debugLogEnabled.Store(enabled)
 }

@@ -3,12 +3,15 @@
 package icons
 
 import (
+	"context"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"server/internal/config"
 
@@ -160,6 +163,62 @@ func GetServiceTags(reference string) []string {
 	}
 
 	return []string{}
+}
+
+// isPrivateIP checks if an IP address is in a private, loopback, or link-local range.
+func isPrivateIP(ip net.IP) bool {
+	privateRanges := []struct {
+		network string
+	}{
+		{"10.0.0.0/8"},
+		{"172.16.0.0/12"},
+		{"192.168.0.0/16"},
+		{"127.0.0.0/8"},
+		{"169.254.0.0/16"},
+		{"::1/128"},
+		{"fc00::/7"},
+		{"fe80::/10"},
+	}
+	for _, r := range privateRanges {
+		_, cidr, _ := net.ParseCIDR(r.network)
+		if cidr.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+// NewSSRFSafeClient creates an http.Client with a custom Transport that blocks
+// connections to private/loopback/link-local IP addresses at dial time,
+// preventing SSRF via DNS rebinding.
+func NewSSRFSafeClient(timeout time.Duration) *http.Client {
+	transport := &http.Transport{
+		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			host, port, err := net.SplitHostPort(addr)
+			if err != nil {
+				return nil, fmt.Errorf("failed to split host/port: %w", err)
+			}
+			ips, err := net.DefaultResolver.LookupIPAddr(ctx, host)
+			if err != nil {
+				return nil, fmt.Errorf("DNS lookup failed: %w", err)
+			}
+			if len(ips) == 0 {
+				return nil, fmt.Errorf("no IP addresses found for host: %s", host)
+			}
+			for _, ip := range ips {
+				if isPrivateIP(ip.IP) {
+					return nil, fmt.Errorf("blocked connection to private/reserved IP %s for host %s", ip.IP, host)
+				}
+			}
+			// Connect directly to the first resolved IP to prevent re-resolution
+			dialer := &net.Dialer{}
+			return dialer.DialContext(ctx, network, net.JoinHostPort(ips[0].IP.String(), port))
+		},
+	}
+	return &http.Client{
+		Timeout:   timeout,
+		Transport: transport,
+	}
 }
 
 // FindFavicon checks for the existence of /favicon.ico at the service URL.
