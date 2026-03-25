@@ -15,6 +15,23 @@ environment:
     columns: 3  # Number of columns in grouped view (1-6), default: 3
     tag_frequency_threshold: 0.9  # Threshold for excluding tags present in more than 90% of services
     min_services_per_group: 2  # Minimum number of services required for a tag to form a group (default: 2)
+  # Auth configuration for header-based authentication via reverse proxy (e.g. Authentik)
+  # When enabled, services are filtered per user based on their OIDC group memberships.
+  # auth:
+  #   enabled: true
+  #   admin_group: "admins"                    # Members of this group see all services
+  #   groups_header: "X-Authentik-Groups"      # HTTP header containing the user's groups
+  #   user_header: "X-Authentik-Username"      # HTTP header containing the username
+  #   group_separator: "|"                     # Separator used between group names in the header
+  #   group_permissions:                       # Map of group name to list of allowed service patterns
+  #     media-team:
+  #       - "plex"
+  #       - "jellyfin"
+  #       - "*arr"                             # Glob pattern: matches sonarr, radarr, etc.
+  #     network-team:
+  #       - "proxmox"
+  #       - "portainer"
+  #       - "unifi-*"
   traefik:
     api_host: http://traefik:8080
     enable_basic_auth: false

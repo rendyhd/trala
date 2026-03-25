@@ -83,6 +83,7 @@ func ProcessRouter(router models.TraefikRouter, entryPoints map[string]models.Tr
 	group := config.GetGroupOverride(routerName)
 
 	return models.Service{
+		ID:       routerName,
 		Name:     displayName,
 		URL:      serviceURL,
 		Priority: router.Priority,
@@ -135,6 +136,7 @@ func GetManualServices() []models.Service {
 		}
 
 		service := models.Service{
+			ID:       manualService.Name,
 			Name:     manualService.Name,
 			URL:      manualService.URL,
 			Priority: priority,

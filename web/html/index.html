@@ -28,6 +28,15 @@
         <span class="text-2xl font-bold logo-font text-blue-500">TraLa</span>
     </div>
 
+    <div id="user-info" class="absolute top-0 right-0 p-4 md:p-8 flex items-center gap-3" style="display: none;">
+        <span id="user-name" class="text-sm text-gray-500 dark:text-gray-400"></span>
+        <a id="user-logout" href="/outpost.goauthentik.io/sign_out" class="text-sm text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors" title="{{ T .Localizer "logout" }}">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+            </svg>
+        </a>
+    </div>
+
     <div class="container mx-auto p-4 md:p-8">
         <header class="mb-8 text-center pt-16">
             <h1 id="greeting" class="text-4xl font-bold mb-2">
