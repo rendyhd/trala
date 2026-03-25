@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -25,16 +26,15 @@ const ConfigurationFilePath = "/config/configuration.yml"
 // Global configuration instance and mutex for thread-safe access
 var (
 	configuration             models.TralaConfiguration
+	fileConfiguration         models.TralaConfiguration // Config as loaded from file (before env overrides)
 	configurationMux          sync.RWMutex
 	configCompatibilityStatus models.ConfigStatus
 	serviceOverrideMap        map[string]models.ServiceOverride
 )
 
-// Load loads the configuration from file and environment variables.
-// It applies defaults, loads from file, overrides from environment, and validates.
-func Load() {
-	// Step 1: defaults
-	config := models.TralaConfiguration{
+// defaultConfiguration returns a TralaConfiguration with all default values.
+func defaultConfiguration() models.TralaConfiguration {
+	return models.TralaConfiguration{
 		Version: "",
 		Environment: models.EnvironmentConfiguration{
 			SelfhstIconURL:         "https://cdn.jsdelivr.net/gh/selfhst/icons/",
@@ -75,6 +75,13 @@ func Load() {
 			Manual:    make([]models.ManualService, 0),
 		},
 	}
+}
+
+// Load loads the configuration from file and environment variables.
+// It applies defaults, loads from file, overrides from environment, and validates.
+func Load() {
+	// Step 1: defaults
+	config := defaultConfiguration()
 
 	// Step 2: configuration file
 	data, err := os.ReadFile(ConfigurationFilePath)
@@ -91,6 +98,11 @@ func Load() {
 		}
 	}
 
+	// Snapshot the file-level configuration (before env overrides)
+	configurationMux.Lock()
+	fileConfiguration = config
+	configurationMux.Unlock()
+
 	// Step 3: validate basic auth password configuration before environment overrides
 	// This ensures we check both the original config values and environment variables
 	basicAuthWarning := ValidateBasicAuthPassword(config.Environment.Traefik)
@@ -99,93 +111,7 @@ func Load() {
 	}
 
 	// Step 4: environment overrides
-	if v := os.Getenv("SELFHST_ICON_URL"); v != "" {
-		config.Environment.SelfhstIconURL = v
-	}
-	if v := os.Getenv("SEARCH_ENGINE_URL"); v != "" {
-		config.Environment.SearchEngineURL = v
-	}
-	if v := os.Getenv("REFRESH_INTERVAL_SECONDS"); v != "" {
-		if num, err := strconv.Atoi(v); err == nil && num > 0 {
-			config.Environment.RefreshIntervalSeconds = num
-		} else {
-			log.Printf("Warning: Invalid REFRESH_INTERVAL_SECONDS '%s', using %d", v, config.Environment.RefreshIntervalSeconds)
-		}
-	}
-	if v := os.Getenv("TRAEFIK_API_HOST"); v != "" {
-		config.Environment.Traefik.APIHost = v
-	}
-	if v := os.Getenv("TRAEFIK_BASIC_AUTH_USERNAME"); v != "" {
-		config.Environment.Traefik.BasicAuth.Username = v
-	}
-	if v := os.Getenv("TRAEFIK_BASIC_AUTH_PASSWORD"); v != "" {
-		config.Environment.Traefik.BasicAuth.Password = v
-	}
-	if v := os.Getenv("TRAEFIK_BASIC_AUTH_PASSWORD_FILE"); v != "" {
-		config.Environment.Traefik.BasicAuth.PasswordFile = v
-	}
-	if v := os.Getenv("TRAEFIK_INSECURE_SKIP_VERIFY"); v != "" {
-		if skipVerify, err := strconv.ParseBool(v); err == nil {
-			config.Environment.Traefik.InsecureSkipVerify = skipVerify
-		} else {
-			log.Printf("Warning: Invalid TRAEFIK_INSECURE_SKIP_VERIFY '%s', using %t", v, config.Environment.Traefik.InsecureSkipVerify)
-		}
-	}
-	if v := os.Getenv("LOG_LEVEL"); v != "" {
-		config.Environment.LogLevel = v
-	}
-	if v := os.Getenv("LANGUAGE"); v != "" {
-		config.Environment.Language = v
-	}
-	if v := os.Getenv("GROUPING_ENABLED"); v != "" {
-		if enabled, err := strconv.ParseBool(v); err == nil {
-			config.Environment.Grouping.Enabled = enabled
-		} else {
-			log.Printf("Warning: Invalid GROUPING_ENABLED '%s', using %t", v, config.Environment.Grouping.Enabled)
-		}
-	}
-	if v := os.Getenv("GROUPING_TAG_FREQUENCY_THRESHOLD"); v != "" {
-		if num, err := strconv.ParseFloat(v, 64); err == nil && num > 0 && num <= 1 {
-			config.Environment.Grouping.TagFrequencyThreshold = num
-		} else {
-			log.Printf("Warning: Invalid GROUPING_TAG_FREQUENCY_THRESHOLD '%s', using %f", v, config.Environment.Grouping.TagFrequencyThreshold)
-		}
-	}
-	if v := os.Getenv("GROUPING_MIN_SERVICES_PER_GROUP"); v != "" {
-		if num, err := strconv.Atoi(v); err == nil && num >= 1 {
-			config.Environment.Grouping.MinServicesPerGroup = num
-		} else {
-			log.Printf("Warning: Invalid GROUPING_MIN_SERVICES_PER_GROUP '%s', must be >= 1, using %d", v, config.Environment.Grouping.MinServicesPerGroup)
-		}
-	}
-	if v := os.Getenv("GROUPED_COLUMNS"); v != "" {
-		if num, err := strconv.Atoi(v); err == nil && num >= 1 && num <= 6 {
-			config.Environment.Grouping.Columns = num
-		} else {
-			log.Printf("Warning: Invalid GROUPED_COLUMNS '%s', must be between 1 and 6, using %d", v, config.Environment.Grouping.Columns)
-		}
-	}
-
-	// Auth environment overrides
-	if v := os.Getenv("AUTH_ENABLED"); v != "" {
-		if enabled, err := strconv.ParseBool(v); err == nil {
-			config.Environment.Auth.Enabled = enabled
-		} else {
-			log.Printf("Warning: Invalid AUTH_ENABLED '%s', using %t", v, config.Environment.Auth.Enabled)
-		}
-	}
-	if v := os.Getenv("AUTH_ADMIN_GROUP"); v != "" {
-		config.Environment.Auth.AdminGroup = v
-	}
-	if v := os.Getenv("AUTH_GROUPS_HEADER"); v != "" {
-		config.Environment.Auth.GroupsHeader = v
-	}
-	if v := os.Getenv("AUTH_USER_HEADER"); v != "" {
-		config.Environment.Auth.UserHeader = v
-	}
-	if v := os.Getenv("AUTH_GROUP_SEPARATOR"); v != "" {
-		config.Environment.Auth.GroupSeparator = v
-	}
+	applyEnvOverrides(&config)
 
 	// Validate LOG_LEVEL
 	validLogLevels := map[string]bool{"info": true, "debug": true, "warn": true, "error": true}
@@ -627,4 +553,270 @@ func GetAuthGroupPermissions() map[string][]string {
 		result[k] = patterns
 	}
 	return result
+}
+
+// --- Admin Configuration Functions ---
+
+// GetFileConfiguration returns the configuration as loaded from the YAML file
+// (before environment variable overrides). This is what the admin UI edits.
+func GetFileConfiguration() models.TralaConfiguration {
+	configurationMux.RLock()
+	defer configurationMux.RUnlock()
+	return fileConfiguration
+}
+
+// GetEnvOverrides returns a map indicating which configuration fields are
+// overridden by environment variables. Keys are the env var names.
+func GetEnvOverrides() map[string]bool {
+	envVars := []string{
+		"SELFHST_ICON_URL",
+		"SEARCH_ENGINE_URL",
+		"REFRESH_INTERVAL_SECONDS",
+		"TRAEFIK_API_HOST",
+		"TRAEFIK_BASIC_AUTH_USERNAME",
+		"TRAEFIK_BASIC_AUTH_PASSWORD",
+		"TRAEFIK_BASIC_AUTH_PASSWORD_FILE",
+		"TRAEFIK_INSECURE_SKIP_VERIFY",
+		"TRAEFIK_ENABLE_BASIC_AUTH",
+		"LOG_LEVEL",
+		"LANGUAGE",
+		"GROUPING_ENABLED",
+		"GROUPED_COLUMNS",
+		"GROUPING_TAG_FREQUENCY_THRESHOLD",
+		"GROUPING_MIN_SERVICES_PER_GROUP",
+		"AUTH_ENABLED",
+		"AUTH_ADMIN_GROUP",
+		"AUTH_GROUPS_HEADER",
+		"AUTH_USER_HEADER",
+		"AUTH_GROUP_SEPARATOR",
+	}
+	result := make(map[string]bool, len(envVars))
+	for _, key := range envVars {
+		if os.Getenv(key) != "" {
+			result[key] = true
+		}
+	}
+	return result
+}
+
+// Reload re-loads the configuration from file and environment variables.
+// Unlike Load(), it returns an error instead of calling os.Exit on failure.
+// It is used by the admin UI to apply saved configuration changes at runtime.
+func Reload() error {
+	// Step 1: defaults
+	config := defaultConfiguration()
+
+	// Step 2: configuration file
+	data, err := os.ReadFile(ConfigurationFilePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			config.Version = MinimumConfigVersion
+		} else {
+			return fmt.Errorf("could not read configuration file: %w", err)
+		}
+	} else {
+		if err := yaml.Unmarshal(data, &config); err != nil {
+			return fmt.Errorf("could not parse configuration file: %w", err)
+		}
+	}
+
+	// Snapshot file configuration
+	fileCfg := config
+
+	// Step 3: validate basic auth
+	basicAuthWarning := ValidateBasicAuthPassword(config.Environment.Traefik)
+
+	// Step 4: environment overrides (same as Load)
+	applyEnvOverrides(&config)
+
+	// Validate LOG_LEVEL
+	validLogLevels := map[string]bool{"info": true, "debug": true, "warn": true, "error": true}
+	if config.Environment.LogLevel != "" && !validLogLevels[config.Environment.LogLevel] {
+		config.Environment.LogLevel = "info"
+	}
+
+	// Step 5: post-processing / validation
+	if config.Environment.Traefik.APIHost == "" {
+		return fmt.Errorf("traefik API host is not set")
+	}
+	if !strings.HasPrefix(config.Environment.Traefik.APIHost, "http://") && !strings.HasPrefix(config.Environment.Traefik.APIHost, "https://") {
+		config.Environment.Traefik.APIHost = "http://" + config.Environment.Traefik.APIHost
+	}
+	if !strings.HasSuffix(config.Environment.SelfhstIconURL, "/") {
+		config.Environment.SelfhstIconURL += "/"
+	}
+
+	if config.Environment.Traefik.EnableBasicAuth {
+		if config.Environment.Traefik.BasicAuth.Username == "" || (config.Environment.Traefik.BasicAuth.Password == "" && config.Environment.Traefik.BasicAuth.PasswordFile == "") {
+			return fmt.Errorf("basic auth is enabled but username/password is not set")
+		}
+	}
+
+	passwordFilePath := config.Environment.Traefik.BasicAuth.PasswordFile
+	if config.Environment.Traefik.EnableBasicAuth && passwordFilePath != "" {
+		data, err := os.ReadFile(passwordFilePath)
+		if err != nil {
+			return fmt.Errorf("could not read password file: %w", err)
+		}
+		config.Environment.Traefik.BasicAuth.Password = strings.TrimSpace(string(data))
+	}
+
+	// Validate auth configuration defaults
+	if config.Environment.Auth.Enabled {
+		if config.Environment.Auth.GroupsHeader == "" {
+			config.Environment.Auth.GroupsHeader = "X-Authentik-Groups"
+		}
+		if config.Environment.Auth.UserHeader == "" {
+			config.Environment.Auth.UserHeader = "X-Authentik-Username"
+		}
+		if config.Environment.Auth.GroupSeparator == "" {
+			config.Environment.Auth.GroupSeparator = "|"
+		}
+	}
+
+	status := ValidateConfigVersion(config.Version, basicAuthWarning)
+
+	// Apply atomically
+	configurationMux.Lock()
+	defer configurationMux.Unlock()
+
+	fileConfiguration = fileCfg
+	configuration = config
+	configCompatibilityStatus = status
+
+	serviceOverrideMap = make(map[string]models.ServiceOverride, len(config.Services.Overrides))
+	for _, o := range config.Services.Overrides {
+		serviceOverrideMap[o.Service] = o
+	}
+
+	log.Println("Configuration reloaded successfully")
+	return nil
+}
+
+// applyEnvOverrides applies environment variable overrides to the configuration.
+func applyEnvOverrides(config *models.TralaConfiguration) {
+	if v := os.Getenv("SELFHST_ICON_URL"); v != "" {
+		config.Environment.SelfhstIconURL = v
+	}
+	if v := os.Getenv("SEARCH_ENGINE_URL"); v != "" {
+		config.Environment.SearchEngineURL = v
+	}
+	if v := os.Getenv("REFRESH_INTERVAL_SECONDS"); v != "" {
+		if num, err := strconv.Atoi(v); err == nil && num > 0 {
+			config.Environment.RefreshIntervalSeconds = num
+		}
+	}
+	if v := os.Getenv("TRAEFIK_API_HOST"); v != "" {
+		config.Environment.Traefik.APIHost = v
+	}
+	if v := os.Getenv("TRAEFIK_ENABLE_BASIC_AUTH"); v != "" {
+		if enabled, err := strconv.ParseBool(v); err == nil {
+			config.Environment.Traefik.EnableBasicAuth = enabled
+		}
+	}
+	if v := os.Getenv("TRAEFIK_BASIC_AUTH_USERNAME"); v != "" {
+		config.Environment.Traefik.BasicAuth.Username = v
+	}
+	if v := os.Getenv("TRAEFIK_BASIC_AUTH_PASSWORD"); v != "" {
+		config.Environment.Traefik.BasicAuth.Password = v
+	}
+	if v := os.Getenv("TRAEFIK_BASIC_AUTH_PASSWORD_FILE"); v != "" {
+		config.Environment.Traefik.BasicAuth.PasswordFile = v
+	}
+	if v := os.Getenv("TRAEFIK_INSECURE_SKIP_VERIFY"); v != "" {
+		if skipVerify, err := strconv.ParseBool(v); err == nil {
+			config.Environment.Traefik.InsecureSkipVerify = skipVerify
+		}
+	}
+	if v := os.Getenv("LOG_LEVEL"); v != "" {
+		config.Environment.LogLevel = v
+	}
+	if v := os.Getenv("LANGUAGE"); v != "" {
+		config.Environment.Language = v
+	}
+	if v := os.Getenv("GROUPING_ENABLED"); v != "" {
+		if enabled, err := strconv.ParseBool(v); err == nil {
+			config.Environment.Grouping.Enabled = enabled
+		}
+	}
+	if v := os.Getenv("GROUPING_TAG_FREQUENCY_THRESHOLD"); v != "" {
+		if num, err := strconv.ParseFloat(v, 64); err == nil && num > 0 && num <= 1 {
+			config.Environment.Grouping.TagFrequencyThreshold = num
+		}
+	}
+	if v := os.Getenv("GROUPING_MIN_SERVICES_PER_GROUP"); v != "" {
+		if num, err := strconv.Atoi(v); err == nil && num >= 1 {
+			config.Environment.Grouping.MinServicesPerGroup = num
+		}
+	}
+	if v := os.Getenv("GROUPED_COLUMNS"); v != "" {
+		if num, err := strconv.Atoi(v); err == nil && num >= 1 && num <= 6 {
+			config.Environment.Grouping.Columns = num
+		}
+	}
+	if v := os.Getenv("AUTH_ENABLED"); v != "" {
+		if enabled, err := strconv.ParseBool(v); err == nil {
+			config.Environment.Auth.Enabled = enabled
+		}
+	}
+	if v := os.Getenv("AUTH_ADMIN_GROUP"); v != "" {
+		config.Environment.Auth.AdminGroup = v
+	}
+	if v := os.Getenv("AUTH_GROUPS_HEADER"); v != "" {
+		config.Environment.Auth.GroupsHeader = v
+	}
+	if v := os.Getenv("AUTH_USER_HEADER"); v != "" {
+		config.Environment.Auth.UserHeader = v
+	}
+	if v := os.Getenv("AUTH_GROUP_SEPARATOR"); v != "" {
+		config.Environment.Auth.GroupSeparator = v
+	}
+}
+
+// SaveToFile saves the given configuration to the YAML file and reloads.
+// It writes atomically using a temp file + rename pattern.
+// Password fields from the existing config are preserved if not provided in the new config.
+func SaveToFile(cfg models.TralaConfiguration) error {
+	// Preserve existing password if not provided (since JSON excludes it)
+	configurationMux.RLock()
+	existingPassword := fileConfiguration.Environment.Traefik.BasicAuth.Password
+	existingPasswordFile := fileConfiguration.Environment.Traefik.BasicAuth.PasswordFile
+	configurationMux.RUnlock()
+
+	if cfg.Environment.Traefik.BasicAuth.Password == "" {
+		cfg.Environment.Traefik.BasicAuth.Password = existingPassword
+	}
+	if cfg.Environment.Traefik.BasicAuth.PasswordFile == "" {
+		cfg.Environment.Traefik.BasicAuth.PasswordFile = existingPasswordFile
+	}
+
+	data, err := yaml.Marshal(cfg)
+	if err != nil {
+		return fmt.Errorf("could not marshal configuration: %w", err)
+	}
+
+	// Write to temp file, then rename for atomic write
+	dir := filepath.Dir(ConfigurationFilePath)
+	tmpFile, err := os.CreateTemp(dir, "configuration-*.yml")
+	if err != nil {
+		return fmt.Errorf("could not create temp file: %w", err)
+	}
+	tmpPath := tmpFile.Name()
+
+	if _, err := tmpFile.Write(data); err != nil {
+		tmpFile.Close()
+		os.Remove(tmpPath)
+		return fmt.Errorf("could not write temp file: %w", err)
+	}
+	if err := tmpFile.Close(); err != nil {
+		os.Remove(tmpPath)
+		return fmt.Errorf("could not close temp file: %w", err)
+	}
+
+	if err := os.Rename(tmpPath, ConfigurationFilePath); err != nil {
+		os.Remove(tmpPath)
+		return fmt.Errorf("could not rename temp file: %w", err)
+	}
+
+	return Reload()
 }

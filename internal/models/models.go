@@ -117,72 +117,72 @@ type SelfHstApp struct {
 // TraefikBasicAuth contains basic authentication credentials for Traefik API access.
 // Password can be provided directly or via a file path.
 type TraefikBasicAuth struct {
-	Username     string `yaml:"username"`
-	Password     string `yaml:"password"`
-	PasswordFile string `yaml:"password_file"`
+	Username     string `yaml:"username" json:"username"`
+	Password     string `yaml:"password" json:"-"`
+	PasswordFile string `yaml:"password_file" json:"-"`
 }
 
 // TraefikConfig contains configuration for connecting to the Traefik API.
 // It includes the API host and optional authentication settings.
 type TraefikConfig struct {
-	APIHost            string           `yaml:"api_host"`
-	EnableBasicAuth    bool             `yaml:"enable_basic_auth"`
-	BasicAuth          TraefikBasicAuth `yaml:"basic_auth"`
-	InsecureSkipVerify bool             `yaml:"insecure_skip_verify"`
+	APIHost            string           `yaml:"api_host" json:"apiHost"`
+	EnableBasicAuth    bool             `yaml:"enable_basic_auth" json:"enableBasicAuth"`
+	BasicAuth          TraefikBasicAuth `yaml:"basic_auth" json:"basicAuth"`
+	InsecureSkipVerify bool             `yaml:"insecure_skip_verify" json:"insecureSkipVerify"`
 }
 
 // ServiceOverride defines overrides for a specific service/router.
 // It allows customizing the display name, icon, and group for a service.
 type ServiceOverride struct {
-	Service     string `yaml:"service"`
-	DisplayName string `yaml:"display_name,omitempty"`
-	Icon        string `yaml:"icon,omitempty"`
-	Group       string `yaml:"group,omitempty"`
+	Service     string `yaml:"service" json:"service"`
+	DisplayName string `yaml:"display_name,omitempty" json:"displayName,omitempty"`
+	Icon        string `yaml:"icon,omitempty" json:"icon,omitempty"`
+	Group       string `yaml:"group,omitempty" json:"group,omitempty"`
 }
 
 // ManualService defines a manually configured service.
 // This is used for services not discovered via Traefik.
 type ManualService struct {
-	Name     string `yaml:"name"`
-	URL      string `yaml:"url"`
-	Icon     string `yaml:"icon,omitempty"`
-	Priority int    `yaml:"priority,omitempty"`
-	Group    string `yaml:"group,omitempty"`
+	Name     string `yaml:"name" json:"name"`
+	URL      string `yaml:"url" json:"url"`
+	Icon     string `yaml:"icon,omitempty" json:"icon,omitempty"`
+	Priority int    `yaml:"priority,omitempty" json:"priority,omitempty"`
+	Group    string `yaml:"group,omitempty" json:"group,omitempty"`
 }
 
 // ExcludeConfig defines patterns for excluding routers and entrypoints.
 // Supports wildcard patterns for flexible matching.
 type ExcludeConfig struct {
-	Routers     []string `yaml:"routers"`
-	Entrypoints []string `yaml:"entrypoints"`
+	Routers     []string `yaml:"routers" json:"routers"`
+	Entrypoints []string `yaml:"entrypoints" json:"entrypoints"`
 }
 
 // ServiceConfiguration contains service-related configuration options.
 // It includes exclusions, overrides, and manual service definitions.
 type ServiceConfiguration struct {
-	Exclude   ExcludeConfig     `yaml:"exclude"`
-	Overrides []ServiceOverride `yaml:"overrides"`
-	Manual    []ManualService   `yaml:"manual"`
+	Exclude   ExcludeConfig     `yaml:"exclude" json:"exclude"`
+	Overrides []ServiceOverride `yaml:"overrides" json:"overrides"`
+	Manual    []ManualService   `yaml:"manual" json:"manual"`
 }
 
 // GroupingConfig contains settings for automatic service grouping.
 // Grouping organizes services by common tags.
 type GroupingConfig struct {
-	Enabled               bool    `yaml:"enabled"`
-	Columns               int     `yaml:"columns"`
-	TagFrequencyThreshold float64 `yaml:"tag_frequency_threshold"`
-	MinServicesPerGroup   int     `yaml:"min_services_per_group"`
+	Enabled               bool    `yaml:"enabled" json:"enabled"`
+	Columns               int     `yaml:"columns" json:"columns"`
+	TagFrequencyThreshold float64 `yaml:"tag_frequency_threshold" json:"tagFrequencyThreshold"`
+	MinServicesPerGroup   int     `yaml:"min_services_per_group" json:"minServicesPerGroup"`
 }
 
 // AuthConfig contains configuration for header-based authentication via a reverse proxy (e.g. Authentik).
 // When enabled, services are filtered based on the user's groups from the proxy headers.
 type AuthConfig struct {
-	Enabled          bool                `yaml:"enabled"`
-	AdminGroup       string              `yaml:"admin_group"`
-	GroupsHeader     string              `yaml:"groups_header"`
-	UserHeader       string              `yaml:"user_header"`
-	GroupSeparator   string              `yaml:"group_separator"`
-	GroupPermissions map[string][]string `yaml:"group_permissions"`
+	Enabled          bool                `yaml:"enabled" json:"enabled"`
+	AdminGroup       string              `yaml:"admin_group" json:"adminGroup"`
+	GroupsHeader     string              `yaml:"groups_header" json:"groupsHeader"`
+	UserHeader       string              `yaml:"user_header" json:"userHeader"`
+	GroupSeparator   string              `yaml:"group_separator" json:"groupSeparator"`
+	GroupPermissions map[string][]string `yaml:"group_permissions" json:"groupPermissions"`
 }
 
 // UserInfo represents authenticated user information returned by the /api/userinfo endpoint.
@@ -195,20 +195,35 @@ type UserInfo struct {
 // EnvironmentConfiguration contains environment-level configuration options.
 // These settings control the overall behavior of the application.
 type EnvironmentConfiguration struct {
-	SelfhstIconURL         string         `yaml:"selfhst_icon_url"`
-	SearchEngineURL        string         `yaml:"search_engine_url"`
-	RefreshIntervalSeconds int            `yaml:"refresh_interval_seconds"`
-	LogLevel               string         `yaml:"log_level"`
-	Traefik                TraefikConfig  `yaml:"traefik"`
-	Language               string         `yaml:"language"`
-	Grouping               GroupingConfig `yaml:"grouping"`
-	Auth                   AuthConfig     `yaml:"auth"`
+	SelfhstIconURL         string         `yaml:"selfhst_icon_url" json:"selfhstIconURL"`
+	SearchEngineURL        string         `yaml:"search_engine_url" json:"searchEngineURL"`
+	RefreshIntervalSeconds int            `yaml:"refresh_interval_seconds" json:"refreshIntervalSeconds"`
+	LogLevel               string         `yaml:"log_level" json:"logLevel"`
+	Traefik                TraefikConfig  `yaml:"traefik" json:"traefik"`
+	Language               string         `yaml:"language" json:"language"`
+	Grouping               GroupingConfig `yaml:"grouping" json:"grouping"`
+	Auth                   AuthConfig     `yaml:"auth" json:"auth"`
 }
 
 // TralaConfiguration is the root configuration structure.
 // It represents the complete configuration file format.
 type TralaConfiguration struct {
-	Version     string                   `yaml:"version"`
-	Environment EnvironmentConfiguration `yaml:"environment"`
-	Services    ServiceConfiguration     `yaml:"services"`
+	Version     string                   `yaml:"version" json:"version"`
+	Environment EnvironmentConfiguration `yaml:"environment" json:"environment"`
+	Services    ServiceConfiguration     `yaml:"services" json:"services"`
+}
+
+// --- Admin Types ---
+
+// AdminConfigResponse is the response for GET /api/admin/config.
+// It returns the file-level config (editable) and which fields have env var overrides.
+type AdminConfigResponse struct {
+	Config       TralaConfiguration `json:"config"`
+	EnvOverrides map[string]bool    `json:"envOverrides"`
+}
+
+// DiscoveredService represents a service discovered from Traefik for the permission matrix.
+type DiscoveredService struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }

@@ -45,7 +45,7 @@ WORKDIR /app
 COPY --from=builder /server /app/server
 
 # Copy the frontend files into a 'static' directory
-COPY --exclude=*.src.css --exclude=html/index.html web /app/static/
+COPY --exclude=*.src.css --exclude=html/index.html --exclude=html/admin.html web /app/static/
 
 # Copy the translations code
 COPY translations/* /app/translations/
@@ -53,8 +53,9 @@ COPY translations/* /app/translations/
 # Copy the compiled Tailwind CSS from the tailwind-builder stage
 COPY --from=tailwind-builder /app/src/tailwind.css /app/static/css/tailwind.css
 
-# Copy the html template into a 'template' directory
+# Copy the html templates into a 'template' directory
 COPY web/html/index.html /app/template/index.html
+COPY web/html/admin.html /app/template/admin.html
 
 # Expose the port the Go server is listening on
 EXPOSE 8080

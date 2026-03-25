@@ -54,8 +54,9 @@ func main() {
 	// Set version info in handlers
 	handlers.SetVersionInfo(version, commit, buildTime)
 
-	// Load HTML template
+	// Load HTML templates
 	handlers.LoadHTMLTemplate("/app/template")
+	handlers.LoadAdminTemplate("/app/template")
 
 	// Pre-warm caches
 	go icons.GetSelfHstIconNames()
@@ -71,9 +72,15 @@ func main() {
 	mux.Handle("/icons/", http.StripPrefix("/icons/", noDirListingFileServer("/icons")))
 	mux.HandleFunc("/", handlers.ServeHTMLTemplate)
 
-	// Register auth-related routes when auth is enabled
+	// Register admin routes
+	mux.HandleFunc("/admin", handlers.AdminOnly(handlers.ServeAdminTemplate))
+	mux.HandleFunc("/api/admin/config", handlers.AdminOnly(handlers.AdminConfigHandler))
+	mux.HandleFunc("/api/admin/services/discovered", handlers.AdminOnly(handlers.DiscoveredServicesHandler))
+
+	// Register userinfo route unconditionally (auth may be toggled at runtime via admin UI)
+	mux.HandleFunc("/api/userinfo", handlers.UserInfoHandler)
+
 	if config.GetAuthEnabled() {
-		mux.HandleFunc("/api/userinfo", handlers.UserInfoHandler)
 		log.Println("Auth enabled. Dashboard services will be filtered based on proxy group headers.")
 	} else {
 		log.Println("WARNING: TraLa does not provide authentication. Ensure it is placed behind an authenticating reverse proxy.")

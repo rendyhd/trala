@@ -448,6 +448,11 @@ const initialize = () => {
                 userNameEl.textContent = userInfo.name;
                 userInfoEl.style.display = 'flex';
             }
+            // Show settings link for admin users
+            const settingsLink = document.getElementById('settings-link');
+            if (settingsLink && userInfo.isAdmin) {
+                settingsLink.style.display = '';
+            }
         } catch (error) {
             console.error('Error fetching user info:', error);
         }
@@ -460,6 +465,13 @@ const initialize = () => {
         // Fetch user info if auth is enabled
         if (status && status.frontend && status.frontend.authEnabled) {
             await fetchUserInfo();
+        } else {
+            // When auth is disabled, show settings link for everyone
+            const settingsLink = document.getElementById('settings-link');
+            if (settingsLink && userInfoEl) {
+                settingsLink.style.display = '';
+                userInfoEl.style.display = 'flex';
+            }
         }
 
         updateGreeting();
