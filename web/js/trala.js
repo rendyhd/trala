@@ -40,7 +40,6 @@ const errorPage = document.getElementById('error-page');
 const errorMessage = document.getElementById('error-message');
 const greetingText = document.getElementById('greeting-text');
 const clock = document.getElementById('clock');
-const configWarning = document.getElementById('config-warning');
 const groupToggle = document.getElementById('group-toggle');
 const groupControls = document.getElementById('group-controls');
 const expandCollapseAll = document.getElementById('expand-collapse-all');
@@ -355,24 +354,6 @@ const initialize = () => {
             }
 
             const status = await response.json();
-
-            // Update version information
-            const versionElement = document.getElementById('version-number');
-            const versionLink = document.getElementById('version-link');
-            if (versionElement && versionLink && status.version) {
-                const version = status.version.version || 'unknown';
-                versionElement.textContent = version;
-                versionLink.href = `https://github.com/dannybouwers/trala/releases/tag/${version}`;
-            }
-
-            // Update configuration status warning
-            if (status.config && configWarning) {
-                // Show warning if config is incompatible OR if there's a warning message
-                if (!status.config.isCompatible || status.config.warningMessage) {
-                    configWarning.style.display = 'inline';
-                    configWarning.title = status.config.warningMessage || 'Configuration issue detected';
-                }
-            }
 
             // Update frontend configuration
             if (status.frontend) {

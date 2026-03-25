@@ -199,6 +199,26 @@ function selectInput(value, options, onChange) {
     return select;
 }
 
+function serviceSelect(value, onChange, placeholder) {
+    const select = document.createElement('select');
+    // Empty option
+    const empty = document.createElement('option');
+    empty.value = '';
+    empty.textContent = placeholder || 'Select a service...';
+    if (!value) empty.selected = true;
+    select.appendChild(empty);
+    // Populate from discovered services
+    discoveredServices.forEach(svc => {
+        const o = document.createElement('option');
+        o.value = svc.id;
+        o.textContent = svc.name + ' (' + svc.id + ')';
+        if (svc.id === value) o.selected = true;
+        select.appendChild(o);
+    });
+    select.addEventListener('change', () => { onChange(select.value); hasUnsavedChanges = true; });
+    return select;
+}
+
 function toggleInput(value, onChange) {
     const btn = document.createElement('button');
     btn.type = 'button';
@@ -601,9 +621,9 @@ function renderOverrides() {
         const grid = document.createElement('div');
         grid.className = 'form-grid';
 
-        grid.appendChild(fieldRow('Service (router name)', textInput(ov.service, v => { overrides[idx].service = v; })));
+        grid.appendChild(fieldRow('Service', serviceSelect(ov.service, v => { overrides[idx].service = v; })));
         grid.appendChild(fieldRow('Display Name', textInput(ov.displayName || '', v => { overrides[idx].displayName = v; })));
-        grid.appendChild(fieldRow('Icon', textInput(ov.icon || '', v => { overrides[idx].icon = v; }, 'icon.png or full URL')));
+        grid.appendChild(fieldRow('Icon', textInput(ov.icon || '', v => { overrides[idx].icon = v; }, 'Leave empty to auto-detect from display name')));
         grid.appendChild(fieldRow('Group', textInput(ov.group || '', v => { overrides[idx].group = v; })));
 
         const delBtn = document.createElement('button');
@@ -663,17 +683,39 @@ function renderExclusions() {
         row.appendChild(delBtn);
         routerFields.appendChild(row);
     });
-    const addRouterBtn = document.createElement('button');
-    addRouterBtn.className = 'btn-link';
-    addRouterBtn.textContent = '+ Add pattern';
-    addRouterBtn.addEventListener('click', () => {
+
+    // Add from dropdown or as custom pattern
+    const addRow = document.createElement('div');
+    addRow.style.display = 'flex';
+    addRow.style.gap = '0.5rem';
+    addRow.style.marginTop = '0.5rem';
+
+    const addSelect = serviceSelect('', v => {
+        if (v) {
+            if (!exclude.routers) exclude.routers = [];
+            if (!exclude.routers.includes(v)) {
+                exclude.routers.push(v);
+                currentConfig.services.exclude = exclude;
+                hasUnsavedChanges = true;
+                renderSection('exclusions');
+            }
+        }
+    }, 'Add service...');
+
+    const addPatternBtn = document.createElement('button');
+    addPatternBtn.className = 'btn-link';
+    addPatternBtn.textContent = '+ Custom pattern';
+    addPatternBtn.addEventListener('click', () => {
         if (!exclude.routers) exclude.routers = [];
         exclude.routers.push('');
         currentConfig.services.exclude = exclude;
         hasUnsavedChanges = true;
         renderSection('exclusions');
     });
-    routerFields.appendChild(addRouterBtn);
+
+    addRow.appendChild(addSelect);
+    addRow.appendChild(addPatternBtn);
+    routerFields.appendChild(addRow);
     frag.appendChild(card('Router Exclusions', routerFields));
 
     // Entrypoints

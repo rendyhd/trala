@@ -814,8 +814,13 @@ func SaveToFile(cfg models.TralaConfiguration) error {
 	}
 
 	if err := os.Rename(tmpPath, ConfigurationFilePath); err != nil {
+		// Rename fails on Docker bind-mounted files (mount point can't be replaced).
+		// Fall back to writing the file contents directly.
+		fallbackErr := os.WriteFile(ConfigurationFilePath, data, 0644)
 		os.Remove(tmpPath)
-		return fmt.Errorf("could not rename temp file: %w", err)
+		if fallbackErr != nil {
+			return fmt.Errorf("could not write config file: %w (rename also failed: %v)", fallbackErr, err)
+		}
 	}
 
 	return Reload()

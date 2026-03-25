@@ -51,7 +51,7 @@ services:
     environment:
       - TRAEFIK_API_HOST=http://traefik:8080
     volumes:
-      - ./configuration.yml:/config/configuration.yml
+      - ./config:/config
 ```
 
 Everything else (grouping, icons, manual services, exclusions, overrides) can be configured from the **Settings UI** at `/admin`.
@@ -75,7 +75,7 @@ services:
       # - AUTH_USER_HEADER=X-Authentik-Username
       # - AUTH_GROUP_SEPARATOR=|
     volumes:
-      - ./configuration.yml:/config/configuration.yml
+      - ./config:/config
 ```
 
 Once running, an admin user can open `/admin` to:
