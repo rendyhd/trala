@@ -4,31 +4,20 @@ A modern, dynamic dashboard for Traefik services. Forked from [dannybouwers/tral
 
 ## What's different in this fork
 
-### Security hardening
-- Fixed critical backend bugs: XSS, URL construction, context leak, nil panic
-- Security hardening: headers, SSRF protection, credential handling, timeouts
-- SSRF DNS rebinding prevention, directory listing bypass fix
-- Concurrency safety and config handling improvements
-- Dockerfile security and build optimization
-- CI/CD workflow improvements
-
 ### Header-based auth with per-group dashboard filtering
 - Authenticate users via headers set by a reverse proxy (e.g. Authentik, Authelia)
 - Define groups in configuration, each with a list of allowed services
 - Users only see services their group is permitted to access
 - Case-insensitive permission matching for service IDs
-- Logout button removed (auth is handled by the proxy)
 
 ### Web-based settings/admin page
 - Configure TraLa from the browser instead of editing YAML files
 - Environment variable overrides documented
 
 ### Other improvements
-- Frontend accessibility, UX, and robustness fixes
-- Code quality cleanup and refactoring
 - Strip `-secure` suffix from router names for correct display and icon lookup
 
-## Features
+## Original Features
 
 - **Auto-Discovery** — Automatically fetches and displays all HTTP routers from Traefik
 - **Icon Auto-Detection** — Intelligently finds icons using selfh.st/icons
