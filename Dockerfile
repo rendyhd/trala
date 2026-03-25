@@ -67,8 +67,12 @@ RUN mkdir -p /config /icons
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD wget -qO- http://localhost:8080/api/health || exit 1
 
-# Create non-root user for security
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+# Create non-root user with fixed UID/GID for predictable volume permissions.
+# To allow config saving, ensure your mounted /config directory is writable
+# by UID 1000 (e.g., chown 1000:1000 /opt/config on the host).
+ARG PUID=1000
+ARG PGID=1000
+RUN addgroup -g ${PGID} -S appgroup && adduser -u ${PUID} -G appgroup -S appuser
 RUN chown -R appuser:appgroup /app /config /icons
 USER appuser
 

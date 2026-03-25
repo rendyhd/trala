@@ -54,6 +54,12 @@ services:
       - ./config:/config
 ```
 
+The `/config` directory must be writable by the container (runs as UID 1000). On the host:
+
+```bash
+chown -R 1000:1000 ./config
+```
+
 Everything else (grouping, icons, manual services, exclusions, overrides) can be configured from the **Settings UI** at `/admin`.
 
 ### With auth (reverse proxy)
