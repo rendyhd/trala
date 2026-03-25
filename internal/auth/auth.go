@@ -92,7 +92,7 @@ func FilterServicesForUser(services []models.Service, userGroups []string, isAdm
 // matchesAnyPattern checks if a service ID matches any of the given glob patterns.
 func matchesAnyPattern(serviceID string, patterns []string) bool {
 	for _, pattern := range patterns {
-		match, err := filepath.Match(pattern, serviceID)
+		match, err := filepath.Match(strings.ToLower(pattern), strings.ToLower(serviceID))
 		if err != nil {
 			log.Printf("WARNING: invalid group_permissions pattern %q: %v", pattern, err)
 			continue
