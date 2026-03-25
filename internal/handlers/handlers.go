@@ -172,10 +172,19 @@ func ServicesHandler(w http.ResponseWriter, r *http.Request) {
 	wg.Wait()
 	close(serviceChan)
 
-	// Collect results from Traefik services.
+	// Collect results, deduplicating by ID (prefer HTTPS over HTTP).
+	seen := make(map[string]int, len(routers))
 	traefikServices := make([]models.Service, 0, len(routers))
 	for service := range serviceChan {
-		traefikServices = append(traefikServices, service)
+		if idx, exists := seen[service.ID]; exists {
+			// Keep the HTTPS variant; replace if current is HTTP and new is HTTPS
+			if strings.HasPrefix(traefikServices[idx].URL, "http://") && strings.HasPrefix(service.URL, "https://") {
+				traefikServices[idx] = service
+			}
+		} else {
+			seen[service.ID] = len(traefikServices)
+			traefikServices = append(traefikServices, service)
+		}
 	}
 
 	// Add manual services

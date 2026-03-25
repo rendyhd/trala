@@ -36,7 +36,6 @@ const searchButton = document.getElementById('search-button');
 const searchIcon = document.getElementById('search-icon');
 const searchIconFallback = document.getElementById('search-icon-fallback');
 const apiLoadingBar = document.getElementById('api-loading-bar');
-const refreshProgressBar = document.getElementById('refresh-progress-bar');
 const errorPage = document.getElementById('error-page');
 const errorMessage = document.getElementById('error-message');
 const greetingText = document.getElementById('greeting-text');
@@ -117,14 +116,6 @@ const updateClock = () => {
 };
 
 
-const startRefreshBarAnimation = () => {
-    refreshProgressBar.style.transition = 'none';
-    refreshProgressBar.style.width = '0%';
-    setTimeout(() => {
-        refreshProgressBar.style.transition = `width ${REFRESH_INTERVAL_SECONDS}s linear`;
-        refreshProgressBar.style.width = '100%';
-    }, 50);
-};
 
 const createServiceCard = (service) => {
     const card = document.createElement('a');
@@ -484,10 +475,8 @@ const initialize = () => {
         await fetchAndProcessServices();
         if (refreshIntervalId) clearInterval(refreshIntervalId);
         if (!isNaN(REFRESH_INTERVAL_SECONDS) && REFRESH_INTERVAL_SECONDS > 0) {
-            startRefreshBarAnimation();
             refreshIntervalId = setInterval(async () => {
                 await fetchAndProcessServices();
-                startRefreshBarAnimation();
             }, REFRESH_INTERVAL_SECONDS * 1000);
         }
     };

@@ -21,7 +21,7 @@ async function loadConfig() {
     try {
         const response = await fetch('/api/admin/config');
         if (response.status === 403) {
-            document.getElementById('content-area').innerHTML = '<p class="text-red-500">Access denied. Admin privileges required.</p>';
+            document.getElementById('content-area').innerHTML = '<p style="color:#ef4444">Access denied. Admin privileges required.</p>';
             return;
         }
         if (!response.ok) throw new Error('Failed to load config');
@@ -60,7 +60,6 @@ async function saveConfig() {
         }
         hasUnsavedChanges = false;
         showToast('Configuration saved successfully', 'success');
-        // Reload config to get effective values
         await loadConfig();
         renderSection(currentSection);
     } catch (error) {
@@ -77,11 +76,8 @@ function setupNavigation() {
             if (section) {
                 currentSection = section;
                 renderSection(section);
-                // Update active state
-                document.querySelectorAll('.nav-btn').forEach(b => {
-                    b.className = 'nav-btn w-full text-left px-3 py-2 rounded-md text-sm font-medium mb-1 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700';
-                });
-                btn.className = 'nav-btn w-full text-left px-3 py-2 rounded-md text-sm font-medium mb-1 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300';
+                document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
             }
         });
     });
@@ -104,7 +100,7 @@ function renderSection(section) {
     document.getElementById('section-title').textContent = sectionTitles[section] || section;
     const area = document.getElementById('content-area');
     if (!currentConfig) {
-        area.innerHTML = '<p class="text-gray-500">Loading...</p>';
+        area.innerHTML = '<p style="color:#9ca3af">Loading...</p>';
         return;
     }
     const renderers = {
@@ -126,22 +122,16 @@ function renderSection(section) {
 
 // --- Helper Functions ---
 
-function escapeHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
-}
-
 function isEnvOverridden(envVar) {
     return envOverrides[envVar] === true;
 }
 
 function card(title, content) {
     const div = document.createElement('div');
-    div.className = 'bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5 mb-4';
+    div.className = 'admin-card';
     if (title) {
         const h = document.createElement('h3');
-        h.className = 'text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4';
+        h.className = 'card-title';
         h.textContent = title;
         div.appendChild(h);
     }
@@ -157,18 +147,18 @@ function card(title, content) {
 
 function fieldRow(label, input, envVar) {
     const row = document.createElement('div');
-    row.className = 'mb-4';
+    row.className = 'field-row';
     const lbl = document.createElement('label');
-    lbl.className = 'block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1';
     lbl.textContent = label;
     if (envVar && isEnvOverridden(envVar)) {
         const badge = document.createElement('span');
-        badge.className = 'ml-2 text-xs px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400';
+        badge.className = 'env-badge';
         badge.textContent = 'ENV: ' + envVar;
         lbl.appendChild(badge);
-        if (input.tagName === 'INPUT' || input.tagName === 'SELECT') {
+        if (input.tagName === 'INPUT' || input.tagName === 'SELECT' || input.tagName === 'BUTTON') {
             input.disabled = true;
-            input.classList.add('opacity-50', 'cursor-not-allowed');
+            input.style.opacity = '0.5';
+            input.style.cursor = 'not-allowed';
         }
     }
     row.appendChild(lbl);
@@ -181,7 +171,6 @@ function textInput(value, onChange, placeholder) {
     input.type = 'text';
     input.value = value || '';
     input.placeholder = placeholder || '';
-    input.className = 'w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none';
     input.addEventListener('input', () => { onChange(input.value); hasUnsavedChanges = true; });
     return input;
 }
@@ -193,14 +182,12 @@ function numberInput(value, onChange, min, max, step) {
     if (min !== undefined) input.min = min;
     if (max !== undefined) input.max = max;
     if (step !== undefined) input.step = step;
-    input.className = 'w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none';
     input.addEventListener('input', () => { onChange(Number(input.value)); hasUnsavedChanges = true; });
     return input;
 }
 
 function selectInput(value, options, onChange) {
     const select = document.createElement('select');
-    select.className = 'w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none';
     options.forEach(opt => {
         const o = document.createElement('option');
         o.value = opt.value;
@@ -213,42 +200,30 @@ function selectInput(value, options, onChange) {
 }
 
 function toggleInput(value, onChange) {
-    const wrapper = document.createElement('div');
-    wrapper.className = 'flex items-center';
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = value
-        ? 'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent bg-blue-600 transition-colors'
-        : 'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent bg-gray-300 dark:bg-gray-600 transition-colors';
+    btn.className = 'admin-toggle';
+    btn.dataset.on = value ? '1' : '';
+    btn.setAttribute('role', 'switch');
+    btn.setAttribute('aria-checked', value ? 'true' : 'false');
     const dot = document.createElement('span');
-    dot.className = value
-        ? 'pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform translate-x-5 transition-transform'
-        : 'pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform translate-x-0 transition-transform';
+    dot.className = 'toggle-dot';
     btn.appendChild(dot);
     btn.addEventListener('click', () => {
-        const newVal = !btn.dataset.on;
+        const newVal = btn.dataset.on !== '1';
         btn.dataset.on = newVal ? '1' : '';
-        btn.className = newVal
-            ? 'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent bg-blue-600 transition-colors'
-            : 'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent bg-gray-300 dark:bg-gray-600 transition-colors';
-        dot.className = newVal
-            ? 'pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform translate-x-5 transition-transform'
-            : 'pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform translate-x-0 transition-transform';
+        btn.setAttribute('aria-checked', newVal ? 'true' : 'false');
         onChange(newVal);
         hasUnsavedChanges = true;
     });
-    btn.dataset.on = value ? '1' : '';
-    wrapper.appendChild(btn);
-    return wrapper;
+    return btn;
 }
 
 function showToast(message, type) {
     const toast = document.getElementById('toast');
     const inner = toast.querySelector('div');
     inner.textContent = message;
-    inner.className = type === 'error'
-        ? 'rounded-lg px-4 py-3 shadow-lg text-sm font-medium bg-red-600 text-white'
-        : 'rounded-lg px-4 py-3 shadow-lg text-sm font-medium bg-green-600 text-white';
+    inner.className = type === 'error' ? 'toast-error' : 'toast-success';
     toast.classList.remove('hidden');
     setTimeout(() => toast.classList.add('hidden'), 3000);
 }
@@ -329,7 +304,7 @@ function renderTraefik() {
         ), 'TRAEFIK_BASIC_AUTH_USERNAME'));
 
         const pwNote = document.createElement('p');
-        pwNote.className = 'text-sm text-gray-500 dark:text-gray-400 italic py-2';
+        pwNote.className = 'pw-note';
         pwNote.textContent = 'Password is managed via config file or TRAEFIK_BASIC_AUTH_PASSWORD env var.';
         fields.appendChild(fieldRow('Password', pwNote, 'TRAEFIK_BASIC_AUTH_PASSWORD'));
     }
@@ -372,10 +347,9 @@ function renderAuth() {
     const fields = document.createElement('div');
     const a = currentConfig.environment.auth;
 
-    // Warning about lockout
     if (!a.enabled) {
         const warn = document.createElement('div');
-        warn.className = 'mb-4 p-3 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-sm text-amber-800 dark:text-amber-300';
+        warn.className = 'admin-alert';
         warn.textContent = 'Enabling auth requires a correctly configured reverse proxy (e.g., Authentik) that sets the user/group headers. Ensure your admin group is correct before enabling, or you may lose access to this settings page.';
         fields.appendChild(warn);
     }
@@ -407,7 +381,7 @@ function renderAuth() {
     return frag;
 }
 
-// --- Section: Permissions Matrix ---
+// --- Section: Permissions (per-group cards) ---
 
 function renderPermissions() {
     const frag = document.createDocumentFragment();
@@ -417,62 +391,26 @@ function renderPermissions() {
 
     if (services.length === 0) {
         const note = document.createElement('p');
-        note.className = 'text-gray-500 dark:text-gray-400 text-sm';
+        note.style.color = '#9ca3af';
+        note.style.fontSize = '0.875rem';
         note.textContent = 'No services discovered yet. Start the dashboard with a valid Traefik connection to see services here.';
         frag.appendChild(card(null, note));
         return frag;
     }
 
-    // Matrix container
-    const container = document.createElement('div');
-    container.className = 'overflow-x-auto';
-
-    const table = document.createElement('table');
-    table.className = 'min-w-full text-sm';
-
-    // Header row
-    const thead = document.createElement('thead');
-    const headerRow = document.createElement('tr');
-    const th0 = document.createElement('th');
-    th0.className = 'text-left py-2 px-3 font-medium text-gray-500 dark:text-gray-400 sticky left-0 bg-white dark:bg-gray-800 z-10';
-    th0.textContent = 'Group';
-    headerRow.appendChild(th0);
-
-    services.forEach(svc => {
-        const th = document.createElement('th');
-        th.className = 'py-2 px-2 font-medium text-gray-500 dark:text-gray-400 text-center whitespace-nowrap';
-        th.textContent = svc.name;
-        headerRow.appendChild(th);
-    });
-
-    // Patterns column
-    const thP = document.createElement('th');
-    thP.className = 'py-2 px-3 font-medium text-gray-500 dark:text-gray-400 text-left';
-    thP.textContent = 'Patterns';
-    headerRow.appendChild(thP);
-
-    // Delete column
-    const thD = document.createElement('th');
-    thD.className = 'py-2 px-2';
-    headerRow.appendChild(thD);
-
-    thead.appendChild(headerRow);
-    table.appendChild(thead);
-
-    // Body
-    const tbody = document.createElement('tbody');
     groups.forEach(group => {
         const patterns = perms[group] || [];
-        const row = document.createElement('tr');
-        row.className = 'border-t border-gray-200 dark:border-gray-700';
 
-        // Group name
-        const tdName = document.createElement('td');
-        tdName.className = 'py-2 px-3 font-medium sticky left-0 bg-white dark:bg-gray-800 z-10';
+        const groupCard = document.createElement('div');
+        groupCard.className = 'admin-card';
+
+        // Group header: editable name + delete
+        const header = document.createElement('div');
+        header.className = 'group-header';
+
         const nameInput = document.createElement('input');
         nameInput.type = 'text';
         nameInput.value = group;
-        nameInput.className = 'px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-transparent text-sm w-32';
         nameInput.addEventListener('change', () => {
             const newName = nameInput.value.trim();
             if (newName && newName !== group) {
@@ -483,59 +421,12 @@ function renderPermissions() {
                 renderSection('permissions');
             }
         });
-        tdName.appendChild(nameInput);
-        row.appendChild(tdName);
+        header.appendChild(nameInput);
 
-        // Service checkboxes
-        services.forEach(svc => {
-            const td = document.createElement('td');
-            td.className = 'py-2 px-2 text-center';
-            const cb = document.createElement('input');
-            cb.type = 'checkbox';
-            cb.className = 'rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 h-4 w-4';
-            cb.checked = matchesPatterns(svc.id, patterns);
-            cb.addEventListener('change', () => {
-                if (cb.checked) {
-                    if (!patterns.includes(svc.id)) {
-                        patterns.push(svc.id);
-                    }
-                } else {
-                    // Remove the specific ID and any pattern that only matches this service
-                    const idx = patterns.indexOf(svc.id);
-                    if (idx !== -1) patterns.splice(idx, 1);
-                }
-                perms[group] = patterns;
-                currentConfig.environment.auth.groupPermissions = perms;
-                hasUnsavedChanges = true;
-            });
-            td.appendChild(cb);
-            row.appendChild(td);
-        });
-
-        // Patterns text
-        const tdPat = document.createElement('td');
-        tdPat.className = 'py-2 px-3';
-        const patInput = document.createElement('input');
-        patInput.type = 'text';
-        patInput.value = patterns.join(', ');
-        patInput.className = 'px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-transparent text-sm w-48';
-        patInput.placeholder = 'e.g., *arr, plex';
-        patInput.addEventListener('change', () => {
-            const newPatterns = patInput.value.split(',').map(p => p.trim()).filter(p => p);
-            perms[group] = newPatterns;
-            currentConfig.environment.auth.groupPermissions = perms;
-            hasUnsavedChanges = true;
-            renderSection('permissions');
-        });
-        tdPat.appendChild(patInput);
-        row.appendChild(tdPat);
-
-        // Delete button
-        const tdDel = document.createElement('td');
-        tdDel.className = 'py-2 px-2';
         const delBtn = document.createElement('button');
-        delBtn.className = 'text-red-500 hover:text-red-700 p-1';
-        delBtn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>';
+        delBtn.className = 'btn-danger';
+        delBtn.title = 'Remove group';
+        delBtn.innerHTML = '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>';
         delBtn.addEventListener('click', () => {
             if (confirm('Remove group "' + group + '"?')) {
                 delete perms[group];
@@ -544,17 +435,70 @@ function renderPermissions() {
                 renderSection('permissions');
             }
         });
-        tdDel.appendChild(delBtn);
-        row.appendChild(tdDel);
+        header.appendChild(delBtn);
+        groupCard.appendChild(header);
 
-        tbody.appendChild(row);
+        // Glob patterns
+        const patRow = document.createElement('div');
+        patRow.className = 'pattern-row';
+        const patLabel = document.createElement('label');
+        patLabel.textContent = 'Glob patterns (comma-separated)';
+        const patInput = document.createElement('input');
+        patInput.type = 'text';
+        patInput.value = patterns.filter(p => p.includes('*') || p.includes('?')).join(', ');
+        patInput.placeholder = 'e.g., *arr, media-*';
+        patInput.addEventListener('change', () => {
+            const explicitIds = patterns.filter(p => !p.includes('*') && !p.includes('?'));
+            const newGlobs = patInput.value.split(',').map(p => p.trim()).filter(p => p);
+            perms[group] = [...explicitIds, ...newGlobs];
+            currentConfig.environment.auth.groupPermissions = perms;
+            hasUnsavedChanges = true;
+            renderSection('permissions');
+        });
+        patRow.appendChild(patLabel);
+        patRow.appendChild(patInput);
+        groupCard.appendChild(patRow);
+
+        // Service checkboxes
+        const gridLabel = document.createElement('label');
+        gridLabel.textContent = 'Services';
+        gridLabel.style.marginBottom = '0.5rem';
+        groupCard.appendChild(gridLabel);
+
+        const grid = document.createElement('div');
+        grid.className = 'perm-grid';
+
+        services.forEach(svc => {
+            const item = document.createElement('label');
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.checked = matchesPatterns(svc.id, patterns);
+            cb.addEventListener('change', () => {
+                if (cb.checked) {
+                    if (!patterns.includes(svc.id)) patterns.push(svc.id);
+                } else {
+                    const idx = patterns.indexOf(svc.id);
+                    if (idx !== -1) patterns.splice(idx, 1);
+                }
+                perms[group] = patterns;
+                currentConfig.environment.auth.groupPermissions = perms;
+                hasUnsavedChanges = true;
+            });
+            const span = document.createElement('span');
+            span.textContent = svc.name;
+            span.title = svc.name;
+            item.appendChild(cb);
+            item.appendChild(span);
+            grid.appendChild(item);
+        });
+
+        groupCard.appendChild(grid);
+        frag.appendChild(groupCard);
     });
-    table.appendChild(tbody);
-    container.appendChild(table);
 
     // Add group button
     const addBtn = document.createElement('button');
-    addBtn.className = 'mt-3 px-3 py-1.5 text-sm bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md transition-colors';
+    addBtn.className = 'btn-add';
     addBtn.textContent = '+ Add Group';
     addBtn.addEventListener('click', () => {
         const name = prompt('Enter group name:');
@@ -567,11 +511,8 @@ function renderPermissions() {
             renderSection('permissions');
         }
     });
+    frag.appendChild(addBtn);
 
-    const wrapper = document.createElement('div');
-    wrapper.appendChild(container);
-    wrapper.appendChild(addBtn);
-    frag.appendChild(card(null, wrapper));
     return frag;
 }
 
@@ -580,7 +521,6 @@ function matchesPatterns(serviceId, patterns) {
 }
 
 function globMatch(pattern, str) {
-    // Simple glob matching supporting * and ?
     let pi = 0, si = 0, starP = -1, starS = -1;
     while (si < str.length) {
         if (pi < pattern.length && (pattern[pi] === str[si] || pattern[pi] === '?')) {
@@ -603,14 +543,12 @@ function renderManualServices() {
     const frag = document.createDocumentFragment();
     const manual = currentConfig.services.manual || [];
 
-    const container = document.createElement('div');
-
     manual.forEach((svc, idx) => {
         const row = document.createElement('div');
-        row.className = 'bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 mb-3';
+        row.className = 'admin-card';
 
         const grid = document.createElement('div');
-        grid.className = 'grid grid-cols-1 md:grid-cols-2 gap-3';
+        grid.className = 'form-grid';
 
         grid.appendChild(fieldRow('Name', textInput(svc.name, v => { manual[idx].name = v; })));
         grid.appendChild(fieldRow('URL', textInput(svc.url, v => { manual[idx].url = v; }, 'https://...')));
@@ -619,8 +557,10 @@ function renderManualServices() {
         grid.appendChild(fieldRow('Group', textInput(svc.group || '', v => { manual[idx].group = v; })));
 
         const delBtn = document.createElement('button');
-        delBtn.className = 'text-red-500 hover:text-red-700 text-sm mt-2';
+        delBtn.className = 'btn-danger';
         delBtn.textContent = 'Remove Service';
+        delBtn.style.marginTop = '0.5rem';
+        delBtn.style.fontSize = '0.875rem';
         delBtn.addEventListener('click', () => {
             if (confirm('Remove "' + svc.name + '"?')) {
                 manual.splice(idx, 1);
@@ -632,11 +572,11 @@ function renderManualServices() {
 
         row.appendChild(grid);
         row.appendChild(delBtn);
-        container.appendChild(row);
+        frag.appendChild(row);
     });
 
     const addBtn = document.createElement('button');
-    addBtn.className = 'px-3 py-1.5 text-sm bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md transition-colors';
+    addBtn.className = 'btn-add';
     addBtn.textContent = '+ Add Service';
     addBtn.addEventListener('click', () => {
         if (!currentConfig.services.manual) currentConfig.services.manual = [];
@@ -644,9 +584,7 @@ function renderManualServices() {
         hasUnsavedChanges = true;
         renderSection('manual');
     });
-
-    container.appendChild(addBtn);
-    frag.appendChild(container);
+    frag.appendChild(addBtn);
     return frag;
 }
 
@@ -656,14 +594,12 @@ function renderOverrides() {
     const frag = document.createDocumentFragment();
     const overrides = currentConfig.services.overrides || [];
 
-    const container = document.createElement('div');
-
     overrides.forEach((ov, idx) => {
         const row = document.createElement('div');
-        row.className = 'bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 mb-3';
+        row.className = 'admin-card';
 
         const grid = document.createElement('div');
-        grid.className = 'grid grid-cols-1 md:grid-cols-2 gap-3';
+        grid.className = 'form-grid';
 
         grid.appendChild(fieldRow('Service (router name)', textInput(ov.service, v => { overrides[idx].service = v; })));
         grid.appendChild(fieldRow('Display Name', textInput(ov.displayName || '', v => { overrides[idx].displayName = v; })));
@@ -671,8 +607,10 @@ function renderOverrides() {
         grid.appendChild(fieldRow('Group', textInput(ov.group || '', v => { overrides[idx].group = v; })));
 
         const delBtn = document.createElement('button');
-        delBtn.className = 'text-red-500 hover:text-red-700 text-sm mt-2';
+        delBtn.className = 'btn-danger';
         delBtn.textContent = 'Remove Override';
+        delBtn.style.marginTop = '0.5rem';
+        delBtn.style.fontSize = '0.875rem';
         delBtn.addEventListener('click', () => {
             if (confirm('Remove override for "' + ov.service + '"?')) {
                 overrides.splice(idx, 1);
@@ -684,11 +622,11 @@ function renderOverrides() {
 
         row.appendChild(grid);
         row.appendChild(delBtn);
-        container.appendChild(row);
+        frag.appendChild(row);
     });
 
     const addBtn = document.createElement('button');
-    addBtn.className = 'px-3 py-1.5 text-sm bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md transition-colors';
+    addBtn.className = 'btn-add';
     addBtn.textContent = '+ Add Override';
     addBtn.addEventListener('click', () => {
         if (!currentConfig.services.overrides) currentConfig.services.overrides = [];
@@ -696,9 +634,7 @@ function renderOverrides() {
         hasUnsavedChanges = true;
         renderSection('overrides');
     });
-
-    container.appendChild(addBtn);
-    frag.appendChild(container);
+    frag.appendChild(addBtn);
     return frag;
 }
 
@@ -712,12 +648,11 @@ function renderExclusions() {
     const routerFields = document.createElement('div');
     (exclude.routers || []).forEach((pattern, idx) => {
         const row = document.createElement('div');
-        row.className = 'flex items-center gap-2 mb-2';
+        row.className = 'inline-row';
         const input = textInput(pattern, v => { exclude.routers[idx] = v; }, 'e.g., traefik-api or internal-*');
-        input.className += ' flex-1';
         const delBtn = document.createElement('button');
-        delBtn.className = 'text-red-500 hover:text-red-700 p-1 shrink-0';
-        delBtn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>';
+        delBtn.className = 'btn-danger';
+        delBtn.innerHTML = '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>';
         delBtn.addEventListener('click', () => {
             exclude.routers.splice(idx, 1);
             currentConfig.services.exclude = exclude;
@@ -729,7 +664,7 @@ function renderExclusions() {
         routerFields.appendChild(row);
     });
     const addRouterBtn = document.createElement('button');
-    addRouterBtn.className = 'text-sm text-blue-600 dark:text-blue-400 hover:underline';
+    addRouterBtn.className = 'btn-link';
     addRouterBtn.textContent = '+ Add pattern';
     addRouterBtn.addEventListener('click', () => {
         if (!exclude.routers) exclude.routers = [];
@@ -745,12 +680,11 @@ function renderExclusions() {
     const epFields = document.createElement('div');
     (exclude.entrypoints || []).forEach((pattern, idx) => {
         const row = document.createElement('div');
-        row.className = 'flex items-center gap-2 mb-2';
+        row.className = 'inline-row';
         const input = textInput(pattern, v => { exclude.entrypoints[idx] = v; }, 'e.g., metrics');
-        input.className += ' flex-1';
         const delBtn = document.createElement('button');
-        delBtn.className = 'text-red-500 hover:text-red-700 p-1 shrink-0';
-        delBtn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>';
+        delBtn.className = 'btn-danger';
+        delBtn.innerHTML = '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>';
         delBtn.addEventListener('click', () => {
             exclude.entrypoints.splice(idx, 1);
             currentConfig.services.exclude = exclude;
@@ -762,7 +696,7 @@ function renderExclusions() {
         epFields.appendChild(row);
     });
     const addEpBtn = document.createElement('button');
-    addEpBtn.className = 'text-sm text-blue-600 dark:text-blue-400 hover:underline';
+    addEpBtn.className = 'btn-link';
     addEpBtn.textContent = '+ Add pattern';
     addEpBtn.addEventListener('click', () => {
         if (!exclude.entrypoints) exclude.entrypoints = [];

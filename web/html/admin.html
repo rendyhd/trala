@@ -11,51 +11,498 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="icon" href="static/img/favicon.ico" type="image/x-icon">
     <link rel="icon" href="static/img/gopher.svg" type="image/svg+xml">
+    <style>
+        /*
+         * Admin page base styles — immune to Tailwind purging.
+         * Tailwind classes in admin.js enhance these when present,
+         * but this layer ensures the page always looks correct.
+         */
+
+        /* --- Layout --- */
+        .admin-layout {
+            display: flex;
+            min-height: 100vh;
+        }
+        .admin-sidebar {
+            width: 15rem;
+            min-width: 15rem;
+            display: flex;
+            flex-direction: column;
+            background: #1f2937;
+            border-right: 1px solid #374151;
+        }
+        .admin-main {
+            flex: 1;
+            overflow-y: auto;
+            background: #111827;
+        }
+        .admin-content {
+            max-width: 56rem;
+            margin: 0 auto;
+            padding: 1.5rem;
+        }
+        @media (min-width: 768px) {
+            .admin-content { padding: 2rem; }
+        }
+        @media (max-width: 767px) {
+            .admin-layout { flex-direction: column; }
+            .admin-sidebar { width: 100%; min-width: unset; flex-direction: row; flex-wrap: wrap; border-right: none; border-bottom: 1px solid #374151; }
+            .admin-logo { padding: 0.75rem 1rem; border-bottom: none; }
+            .admin-nav { display: flex; flex-wrap: wrap; gap: 0.25rem; padding: 0.5rem; flex: unset; }
+            .admin-nav-section { display: none; }
+            .nav-btn { width: auto; padding: 0.375rem 0.625rem; font-size: 0.75rem; }
+            .admin-back { border-top: none; padding: 0.5rem; }
+        }
+
+        /* --- Sidebar Logo --- */
+        .admin-logo {
+            display: flex;
+            align-items: center;
+            gap: 0.625rem;
+            padding: 1.25rem 1rem;
+            border-bottom: 1px solid #374151;
+            text-decoration: none;
+        }
+        .admin-logo img {
+            width: 36px;
+            height: 36px;
+            object-fit: contain;
+            flex-shrink: 0;
+        }
+        .admin-logo span {
+            font-family: 'Roboto Slab', serif;
+            font-weight: 700;
+            font-size: 1.375rem;
+            color: #3b82f6;
+        }
+
+        /* --- Sidebar Nav --- */
+        .admin-nav {
+            padding: 0.75rem;
+            flex: 1;
+            overflow-y: auto;
+        }
+        .admin-nav-section {
+            font-size: 0.6875rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #6b7280;
+            padding: 0 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .admin-nav-section:not(:first-child) {
+            margin-top: 1.25rem;
+        }
+        .nav-btn {
+            display: block;
+            width: 100%;
+            text-align: left;
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-bottom: 0.125rem;
+            color: #9ca3af;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s;
+        }
+        .nav-btn:hover {
+            background: #374151;
+            color: #e5e7eb;
+        }
+        .nav-btn.active {
+            background: rgba(59, 130, 246, 0.15);
+            color: #93c5fd;
+        }
+        .admin-back {
+            padding: 0.75rem;
+            border-top: 1px solid #374151;
+        }
+        .admin-back a {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.875rem;
+            color: #9ca3af;
+            text-decoration: none;
+            border-radius: 0.375rem;
+            transition: background 0.15s, color 0.15s;
+        }
+        .admin-back a:hover {
+            background: #374151;
+            color: #e5e7eb;
+        }
+
+        /* --- Page Header --- */
+        .admin-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.5rem;
+        }
+        .admin-header h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #f9fafb;
+            margin: 0;
+        }
+
+        /* --- Save Button --- */
+        .admin-save-btn {
+            padding: 0.5rem 1rem;
+            background: #2563eb;
+            color: #fff;
+            font-weight: 500;
+            font-size: 0.875rem;
+            border: none;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .admin-save-btn:hover {
+            background: #1d4ed8;
+        }
+
+        /* --- Cards (generated by JS card() helper and .admin-card) --- */
+        #content-area .admin-card {
+            background: #1f2937;
+            border: 1px solid #374151;
+            border-radius: 0.5rem;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+        }
+
+        /* --- Form Inputs --- */
+        #content-area input[type="text"],
+        #content-area input[type="number"],
+        #content-area input[type="search"],
+        #content-area select {
+            width: 100%;
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.375rem;
+            border: 1px solid #4b5563;
+            background: #374151;
+            color: #f3f4f6;
+            font-size: 0.875rem;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.15s, box-shadow 0.15s;
+            box-sizing: border-box;
+        }
+        #content-area input:focus,
+        #content-area select:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+        }
+        #content-area input:disabled,
+        #content-area select:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        #content-area input::placeholder {
+            color: #6b7280;
+        }
+
+        /* --- Labels --- */
+        #content-area label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #d1d5db;
+            margin-bottom: 0.25rem;
+        }
+
+        /* --- Field rows --- */
+        .field-row {
+            margin-bottom: 1rem;
+        }
+
+        /* --- ENV Override Badge --- */
+        .env-badge {
+            display: inline-block;
+            margin-left: 0.5rem;
+            font-size: 0.6875rem;
+            padding: 0.125rem 0.375rem;
+            border-radius: 0.25rem;
+            background: rgba(217, 119, 6, 0.15);
+            color: #fbbf24;
+            font-weight: 500;
+            vertical-align: middle;
+        }
+
+        /* --- Toggle Switch --- */
+        .admin-toggle {
+            position: relative;
+            display: inline-flex;
+            width: 2.75rem;
+            height: 1.5rem;
+            flex-shrink: 0;
+            cursor: pointer;
+            border-radius: 9999px;
+            border: 2px solid transparent;
+            background: #4b5563;
+            transition: background 0.2s;
+        }
+        .admin-toggle[data-on="1"] {
+            background: #2563eb;
+        }
+        .admin-toggle .toggle-dot {
+            display: inline-block;
+            width: 1.25rem;
+            height: 1.25rem;
+            border-radius: 9999px;
+            background: #fff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            transition: transform 0.2s;
+            transform: translateX(0);
+            pointer-events: none;
+        }
+        .admin-toggle[data-on="1"] .toggle-dot {
+            transform: translateX(1.25rem);
+        }
+
+        /* --- Permissions Grid --- */
+        .perm-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            column-gap: 1rem;
+            row-gap: 0.25rem;
+        }
+        @media (min-width: 640px) {
+            .perm-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        }
+        @media (min-width: 768px) {
+            .perm-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+        }
+        .perm-grid label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.25rem 0;
+            font-size: 0.875rem;
+            color: #d1d5db;
+            cursor: pointer;
+            margin-bottom: 0;
+        }
+        .perm-grid label:hover {
+            color: #f9fafb;
+        }
+        .perm-grid input[type="checkbox"] {
+            width: 1rem;
+            height: 1rem;
+            flex-shrink: 0;
+            accent-color: #3b82f6;
+        }
+        .perm-grid span {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* --- Service/Override Cards Grid --- */
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 0.75rem;
+        }
+        @media (min-width: 768px) {
+            .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+
+        /* --- Inline row (exclusions) --- */
+        .inline-row {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .inline-row input {
+            flex: 1;
+        }
+
+        /* --- Buttons --- */
+        .btn-add {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.875rem;
+            background: #374151;
+            color: #d1d5db;
+            border: none;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            transition: background 0.15s;
+            margin-top: 0.75rem;
+        }
+        .btn-add:hover {
+            background: #4b5563;
+        }
+        .btn-danger {
+            background: transparent;
+            border: none;
+            color: #ef4444;
+            cursor: pointer;
+            padding: 0.25rem;
+            flex-shrink: 0;
+            transition: color 0.15s;
+        }
+        .btn-danger:hover {
+            color: #f87171;
+        }
+        .btn-link {
+            background: transparent;
+            border: none;
+            color: #60a5fa;
+            cursor: pointer;
+            font-size: 0.875rem;
+            padding: 0;
+            transition: color 0.15s;
+        }
+        .btn-link:hover {
+            color: #93c5fd;
+            text-decoration: underline;
+        }
+
+        /* --- Alert/Warning --- */
+        .admin-alert {
+            padding: 0.75rem;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            margin-bottom: 1rem;
+            background: rgba(217, 119, 6, 0.1);
+            border: 1px solid rgba(217, 119, 6, 0.3);
+            color: #fcd34d;
+        }
+
+        /* --- Card Titles --- */
+        .card-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #9ca3af;
+            margin-bottom: 1rem;
+        }
+
+        /* --- Group Header (permissions) --- */
+        .group-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 0.75rem;
+        }
+        .group-header input[type="text"] {
+            width: auto;
+            font-size: 1rem;
+            font-weight: 600;
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid transparent;
+            border-radius: 0;
+            padding: 0.25rem 0;
+            color: #f9fafb;
+        }
+        .group-header input[type="text"]:hover {
+            border-bottom-color: #4b5563;
+        }
+        .group-header input[type="text"]:focus {
+            border-bottom-color: #3b82f6;
+            box-shadow: none;
+        }
+
+        /* --- Glob pattern row in permissions --- */
+        .pattern-row {
+            margin-bottom: 1rem;
+        }
+        .pattern-row label {
+            font-size: 0.75rem;
+            color: #9ca3af;
+        }
+
+        /* --- Toast --- */
+        #toast {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 50;
+        }
+        #toast.hidden { display: none; }
+        .toast-success {
+            background: #059669;
+            color: #fff;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        .toast-error {
+            background: #dc2626;
+            color: #fff;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        /* --- Password note --- */
+        .pw-note {
+            font-size: 0.875rem;
+            color: #9ca3af;
+            font-style: italic;
+            padding: 0.5rem 0;
+        }
+
+        /* Subtle SVG icon sizing in buttons */
+        .btn-danger svg, .admin-back svg {
+            width: 1rem;
+            height: 1rem;
+        }
+    </style>
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 antialiased">
     <!-- Toast notification -->
-    <div id="toast" class="fixed top-4 right-4 z-50 hidden">
-        <div class="rounded-lg px-4 py-3 shadow-lg text-sm font-medium"></div>
+    <div id="toast" class="hidden">
+        <div></div>
     </div>
 
-    <div class="flex min-h-screen">
+    <div class="admin-layout">
         <!-- Sidebar -->
-        <nav class="w-56 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col shrink-0">
-            <div class="p-4 border-b border-gray-200 dark:border-gray-700">
-                <a href="/" class="flex items-center">
-                    <img src="static/img/gopher.svg" alt="Logo" class="h-8 w-8 mr-2">
-                    <span class="text-xl font-bold logo-font text-blue-500">TraLa</span>
-                </a>
-            </div>
-            <div class="p-3 flex-1 overflow-y-auto">
-                <div class="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider px-2 mb-2">Settings</div>
-                <button data-section="general" class="nav-btn w-full text-left px-3 py-2 rounded-md text-sm font-medium mb-1 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">General</button>
-                <button data-section="traefik" class="nav-btn w-full text-left px-3 py-2 rounded-md text-sm font-medium mb-1 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700">Traefik</button>
-                <button data-section="grouping" class="nav-btn w-full text-left px-3 py-2 rounded-md text-sm font-medium mb-1 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700">Grouping</button>
-                <button data-section="auth" class="nav-btn w-full text-left px-3 py-2 rounded-md text-sm font-medium mb-1 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700">Authentication</button>
-                <button data-section="permissions" class="nav-btn w-full text-left px-3 py-2 rounded-md text-sm font-medium mb-1 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700">Permissions</button>
+        <nav class="admin-sidebar">
+            <a href="/" class="admin-logo">
+                <img src="static/img/gopher.svg" alt="Logo">
+                <span>TraLa</span>
+            </a>
+            <div class="admin-nav">
+                <div class="admin-nav-section">Settings</div>
+                <button data-section="general" class="nav-btn active">General</button>
+                <button data-section="traefik" class="nav-btn">Traefik</button>
+                <button data-section="grouping" class="nav-btn">Grouping</button>
+                <button data-section="auth" class="nav-btn">Authentication</button>
+                <button data-section="permissions" class="nav-btn">Permissions</button>
 
-                <div class="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider px-2 mb-2 mt-4">Services</div>
-                <button data-section="manual" class="nav-btn w-full text-left px-3 py-2 rounded-md text-sm font-medium mb-1 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700">Manual Services</button>
-                <button data-section="overrides" class="nav-btn w-full text-left px-3 py-2 rounded-md text-sm font-medium mb-1 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700">Overrides</button>
-                <button data-section="exclusions" class="nav-btn w-full text-left px-3 py-2 rounded-md text-sm font-medium mb-1 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700">Exclusions</button>
+                <div class="admin-nav-section">Services</div>
+                <button data-section="manual" class="nav-btn">Manual Services</button>
+                <button data-section="overrides" class="nav-btn">Overrides</button>
+                <button data-section="exclusions" class="nav-btn">Exclusions</button>
             </div>
-            <div class="p-3 border-t border-gray-200 dark:border-gray-700">
-                <a href="/" class="flex items-center px-3 py-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700">
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+            <div class="admin-back">
+                <a href="/">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
                     Back to Dashboard
                 </a>
             </div>
         </nav>
 
         <!-- Main Content -->
-        <main class="flex-1 overflow-y-auto">
-            <div class="max-w-4xl mx-auto p-6 md:p-8">
-                <div class="flex items-center justify-between mb-6">
-                    <h1 id="section-title" class="text-2xl font-bold">General Settings</h1>
-                    <button id="save-btn" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors text-sm">
-                        Save Changes
-                    </button>
+        <main class="admin-main">
+            <div class="admin-content">
+                <div class="admin-header">
+                    <h1 id="section-title">General Settings</h1>
+                    <button id="save-btn" class="admin-save-btn">Save Changes</button>
                 </div>
 
                 <div id="content-area">
