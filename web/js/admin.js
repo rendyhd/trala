@@ -624,7 +624,7 @@ function renderOverrides() {
         grid.appendChild(fieldRow('Service', serviceSelect(ov.service, v => { overrides[idx].service = v; })));
         grid.appendChild(fieldRow('Display Name', textInput(ov.displayName || '', v => { overrides[idx].displayName = v; })));
         grid.appendChild(fieldRow('Icon', textInput(ov.icon || '', v => { overrides[idx].icon = v; }, 'Leave empty to auto-detect from display name')));
-        grid.appendChild(fieldRow('Group', textInput(ov.group || '', v => { overrides[idx].group = v; })));
+        grid.appendChild(fieldRow('Group', textInput(ov.group || '', v => { overrides[idx].group = v; }, 'Leave empty to auto-detect')));
 
         const delBtn = document.createElement('button');
         delBtn.className = 'btn-danger';

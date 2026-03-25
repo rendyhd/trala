@@ -795,31 +795,28 @@ func SaveToFile(cfg models.TralaConfiguration) error {
 		return fmt.Errorf("could not marshal configuration: %w", err)
 	}
 
-	// Write to temp file, then rename for atomic write
+	// Try atomic write (temp file + rename), fall back to direct write.
+	// Direct write is needed for Docker bind-mounted files/directories where
+	// temp file creation or rename may fail.
+	written := false
 	dir := filepath.Dir(ConfigurationFilePath)
-	tmpFile, err := os.CreateTemp(dir, "configuration-*.yml")
-	if err != nil {
-		return fmt.Errorf("could not create temp file: %w", err)
+	if tmpFile, err := os.CreateTemp(dir, "configuration-*.yml"); err == nil {
+		tmpPath := tmpFile.Name()
+		if _, err := tmpFile.Write(data); err == nil {
+			tmpFile.Close()
+			if err := os.Rename(tmpPath, ConfigurationFilePath); err == nil {
+				written = true
+			} else {
+				os.Remove(tmpPath)
+			}
+		} else {
+			tmpFile.Close()
+			os.Remove(tmpPath)
+		}
 	}
-	tmpPath := tmpFile.Name()
-
-	if _, err := tmpFile.Write(data); err != nil {
-		tmpFile.Close()
-		os.Remove(tmpPath)
-		return fmt.Errorf("could not write temp file: %w", err)
-	}
-	if err := tmpFile.Close(); err != nil {
-		os.Remove(tmpPath)
-		return fmt.Errorf("could not close temp file: %w", err)
-	}
-
-	if err := os.Rename(tmpPath, ConfigurationFilePath); err != nil {
-		// Rename fails on Docker bind-mounted files (mount point can't be replaced).
-		// Fall back to writing the file contents directly.
-		fallbackErr := os.WriteFile(ConfigurationFilePath, data, 0644)
-		os.Remove(tmpPath)
-		if fallbackErr != nil {
-			return fmt.Errorf("could not write config file: %w (rename also failed: %v)", fallbackErr, err)
+	if !written {
+		if err := os.WriteFile(ConfigurationFilePath, data, 0644); err != nil {
+			return fmt.Errorf("could not write config file: %w", err)
 		}
 	}
 
