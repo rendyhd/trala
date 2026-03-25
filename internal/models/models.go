@@ -33,6 +33,7 @@ type TraefikEntryPoint struct {
 // Service represents the final, processed data sent to the frontend.
 // It contains all the information needed to display a service in the dashboard.
 type Service struct {
+	ID       string   `json:"-"`         // Internal identifier (router name or manual service name) for permission matching
 	Name     string   `json:"Name"`
 	URL      string   `json:"url"`
 	Priority int      `json:"priority"`
@@ -75,6 +76,7 @@ type FrontendConfig struct {
 	RefreshIntervalSeconds int    `json:"refreshIntervalSeconds"`
 	GroupingEnabled        bool   `json:"groupingEnabled"`
 	GroupingColumns        int    `json:"groupingColumns"`
+	AuthEnabled            bool   `json:"authEnabled"`
 }
 
 // ApplicationStatus represents the combined status information for the application.
@@ -172,6 +174,24 @@ type GroupingConfig struct {
 	MinServicesPerGroup   int     `yaml:"min_services_per_group"`
 }
 
+// AuthConfig contains configuration for header-based authentication via a reverse proxy (e.g. Authentik).
+// When enabled, services are filtered based on the user's groups from the proxy headers.
+type AuthConfig struct {
+	Enabled          bool                `yaml:"enabled"`
+	AdminGroup       string              `yaml:"admin_group"`
+	GroupsHeader     string              `yaml:"groups_header"`
+	UserHeader       string              `yaml:"user_header"`
+	GroupSeparator   string              `yaml:"group_separator"`
+	GroupPermissions map[string][]string `yaml:"group_permissions"`
+}
+
+// UserInfo represents authenticated user information returned by the /api/userinfo endpoint.
+type UserInfo struct {
+	Name    string   `json:"name"`
+	Groups  []string `json:"groups"`
+	IsAdmin bool     `json:"isAdmin"`
+}
+
 // EnvironmentConfiguration contains environment-level configuration options.
 // These settings control the overall behavior of the application.
 type EnvironmentConfiguration struct {
@@ -182,6 +202,7 @@ type EnvironmentConfiguration struct {
 	Traefik                TraefikConfig  `yaml:"traefik"`
 	Language               string         `yaml:"language"`
 	Grouping               GroupingConfig `yaml:"grouping"`
+	Auth                   AuthConfig     `yaml:"auth"`
 }
 
 // TralaConfiguration is the root configuration structure.

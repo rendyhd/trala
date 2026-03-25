@@ -57,6 +57,14 @@ func Load() {
 				TagFrequencyThreshold: 0.9,
 				MinServicesPerGroup:   2,
 			},
+			Auth: models.AuthConfig{
+				Enabled:          false,
+				AdminGroup:       "admins",
+				GroupsHeader:     "X-Authentik-Groups",
+				UserHeader:       "X-Authentik-Username",
+				GroupSeparator:   "|",
+				GroupPermissions: make(map[string][]string),
+			},
 		},
 		Services: models.ServiceConfiguration{
 			Exclude: models.ExcludeConfig{
@@ -158,6 +166,27 @@ func Load() {
 		}
 	}
 
+	// Auth environment overrides
+	if v := os.Getenv("AUTH_ENABLED"); v != "" {
+		if enabled, err := strconv.ParseBool(v); err == nil {
+			config.Environment.Auth.Enabled = enabled
+		} else {
+			log.Printf("Warning: Invalid AUTH_ENABLED '%s', using %t", v, config.Environment.Auth.Enabled)
+		}
+	}
+	if v := os.Getenv("AUTH_ADMIN_GROUP"); v != "" {
+		config.Environment.Auth.AdminGroup = v
+	}
+	if v := os.Getenv("AUTH_GROUPS_HEADER"); v != "" {
+		config.Environment.Auth.GroupsHeader = v
+	}
+	if v := os.Getenv("AUTH_USER_HEADER"); v != "" {
+		config.Environment.Auth.UserHeader = v
+	}
+	if v := os.Getenv("AUTH_GROUP_SEPARATOR"); v != "" {
+		config.Environment.Auth.GroupSeparator = v
+	}
+
 	// Validate LOG_LEVEL
 	validLogLevels := map[string]bool{"info": true, "debug": true, "warn": true, "error": true}
 	if config.Environment.LogLevel != "" && !validLogLevels[config.Environment.LogLevel] {
@@ -201,6 +230,25 @@ func Load() {
 		} else {
 			config.Environment.Traefik.BasicAuth.Password = strings.TrimSpace(string(data))
 		}
+	}
+
+	// Validate auth configuration
+	if config.Environment.Auth.Enabled {
+		if config.Environment.Auth.AdminGroup == "" {
+			log.Printf("WARNING: Auth is enabled but admin_group is not set. No group will have admin access.")
+		}
+		if config.Environment.Auth.GroupsHeader == "" {
+			config.Environment.Auth.GroupsHeader = "X-Authentik-Groups"
+		}
+		if config.Environment.Auth.UserHeader == "" {
+			config.Environment.Auth.UserHeader = "X-Authentik-Username"
+		}
+		if config.Environment.Auth.GroupSeparator == "" {
+			config.Environment.Auth.GroupSeparator = "|"
+		}
+		log.Printf("Auth enabled. Admin group: %s, Groups header: %s, User header: %s",
+			config.Environment.Auth.AdminGroup, config.Environment.Auth.GroupsHeader, config.Environment.Auth.UserHeader)
+		log.Printf("Loaded %d group permission entries", len(config.Environment.Auth.GroupPermissions))
 	}
 
 	log.Printf("Loaded %d router excludes from %s", len(config.Services.Exclude.Routers), ConfigurationFilePath)
@@ -552,4 +600,31 @@ func GetGroupOverride(routerName string) string {
 		return override.Group
 	}
 	return ""
+}
+
+// GetAuthEnabled returns whether header-based authentication is enabled.
+func GetAuthEnabled() bool {
+	configurationMux.RLock()
+	defer configurationMux.RUnlock()
+	return configuration.Environment.Auth.Enabled
+}
+
+// GetAuthConfig returns the complete auth configuration.
+func GetAuthConfig() models.AuthConfig {
+	configurationMux.RLock()
+	defer configurationMux.RUnlock()
+	return configuration.Environment.Auth
+}
+
+// GetAuthGroupPermissions returns a copy of the group permissions map.
+func GetAuthGroupPermissions() map[string][]string {
+	configurationMux.RLock()
+	defer configurationMux.RUnlock()
+	result := make(map[string][]string, len(configuration.Environment.Auth.GroupPermissions))
+	for k, v := range configuration.Environment.Auth.GroupPermissions {
+		patterns := make([]string, len(v))
+		copy(patterns, v)
+		result[k] = patterns
+	}
+	return result
 }

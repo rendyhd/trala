@@ -45,6 +45,8 @@ const configWarning = document.getElementById('config-warning');
 const groupToggle = document.getElementById('group-toggle');
 const groupControls = document.getElementById('group-controls');
 const expandCollapseAll = document.getElementById('expand-collapse-all');
+const userInfoEl = document.getElementById('user-info');
+const userNameEl = document.getElementById('user-name');
 
 let allServices = [];
 let allExpanded = true;
@@ -255,6 +257,10 @@ const fetchAndProcessServices = async () => {
     hideErrorPage();
     try {
         const response = await fetch(API_URL);
+        if (response.status === 401 || response.status === 403) {
+            window.location.reload();
+            return;
+        }
         if (!response.ok) {
             const errorText = await response.text();
             throw new Error(`API request failed: ${response.status} - ${errorText}`);
@@ -433,9 +439,28 @@ const initialize = () => {
         }
     };
 
+    const fetchUserInfo = async () => {
+        try {
+            const response = await fetch('/api/userinfo');
+            if (!response.ok) return;
+            const userInfo = await response.json();
+            if (userInfo.name && userInfoEl && userNameEl) {
+                userNameEl.textContent = userInfo.name;
+                userInfoEl.style.display = 'flex';
+            }
+        } catch (error) {
+            console.error('Error fetching user info:', error);
+        }
+    };
+
     const startApp = async () => {
         // Fetch all application status information in a single call
-        await fetchApplicationStatus();
+        const status = await fetchApplicationStatus();
+
+        // Fetch user info if auth is enabled
+        if (status && status.frontend && status.frontend.authEnabled) {
+            await fetchUserInfo();
+        }
 
         updateGreeting();
         updateClock();

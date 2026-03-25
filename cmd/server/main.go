@@ -71,8 +71,15 @@ func main() {
 	mux.Handle("/icons/", http.StripPrefix("/icons/", noDirListingFileServer("/icons")))
 	mux.HandleFunc("/", handlers.ServeHTMLTemplate)
 
+	// Register auth-related routes when auth is enabled
+	if config.GetAuthEnabled() {
+		mux.HandleFunc("/api/userinfo", handlers.UserInfoHandler)
+		log.Println("Auth enabled. Dashboard services will be filtered based on proxy group headers.")
+	} else {
+		log.Println("WARNING: TraLa does not provide authentication. Ensure it is placed behind an authenticating reverse proxy.")
+	}
+
 	// Start server
-	log.Println("WARNING: TraLa does not provide authentication. Ensure it is placed behind an authenticating reverse proxy.")
 	log.Println("Starting server on :8080...")
 	server := &http.Server{
 		Addr:              ":8080",

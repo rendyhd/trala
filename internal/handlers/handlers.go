@@ -18,6 +18,7 @@ import (
 
 	"github.com/nicksnyder/go-i18n/v2/i18n"
 
+	"server/internal/auth"
 	"server/internal/config"
 	appi18n "server/internal/i18n"
 	"server/internal/icons"
@@ -193,6 +194,13 @@ func ServicesHandler(w http.ResponseWriter, r *http.Request) {
 		return finalServices[i].Priority > finalServices[j].Priority
 	})
 
+	// Filter services based on user's group permissions (if auth is enabled)
+	if config.GetAuthEnabled() {
+		userGroups := auth.ExtractUserGroups(r)
+		isAdmin := auth.IsAdmin(userGroups)
+		finalServices = auth.FilterServicesForUser(finalServices, userGroups, isAdmin)
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(finalServices); err != nil {
 		log.Printf("ERROR: Failed to encode services response: %v", err)
@@ -270,6 +278,7 @@ func StatusHandler(w http.ResponseWriter, r *http.Request) {
 		RefreshIntervalSeconds: refreshIntervalSeconds,
 		GroupingEnabled:        config.GetGroupingEnabled(),
 		GroupingColumns:        config.GetGroupingColumns(),
+		AuthEnabled:            config.GetAuthEnabled(),
 	}
 
 	// Combine all status information
@@ -282,6 +291,21 @@ func StatusHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(status); err != nil {
 		log.Printf("ERROR: Failed to encode status response: %v", err)
+	}
+}
+
+// UserInfoHandler returns information about the authenticated user from proxy headers.
+func UserInfoHandler(w http.ResponseWriter, r *http.Request) {
+	groups := auth.ExtractUserGroups(r)
+	userInfo := models.UserInfo{
+		Name:    auth.ExtractUserName(r),
+		Groups:  groups,
+		IsAdmin: auth.IsAdmin(groups),
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(userInfo); err != nil {
+		log.Printf("ERROR: Failed to encode userinfo response: %v", err)
 	}
 }
 
