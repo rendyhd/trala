@@ -34,6 +34,8 @@ func ProcessRouter(router models.TraefikRouter, entryPoints map[string]models.Tr
 		}
 	}
 
+	routerName = strings.TrimSuffix(routerName, "-secure")
+
 	serviceURL := traefik.ReconstructURL(router, entryPoints)
 
 	if serviceURL == "" {
