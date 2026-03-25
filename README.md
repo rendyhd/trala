@@ -1,6 +1,6 @@
 # TraLa (Fork)
 
-A modern, dynamic dashboard for Traefik services. Forked from [dannybouwers/trala](https://github.com/dannybouwers/trala) because my setup needs multi-user support with per-group service visibility — something upstream doesn't offer. Along the way I added security hardening, OIDC/proxy auth integration, and a web-based settings UI.
+A modern, dynamic dashboard for Traefik services. Forked from [dannybouwers/trala](https://github.com/dannybouwers/trala) because my setup needs multi-user support with per-group service visibility — something upstream doesn't offer. Along the way I added a web-based settings UI.
 
 ## What's different in this fork
 
