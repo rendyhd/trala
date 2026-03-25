@@ -32,9 +32,8 @@ services:
       - "traefik.http.services.traefik.loadbalancer.server.port=8080"
 
   trala:
-    # Use either GitHub Container Registry (primary) or Docker Hub (secondary)
-    # image: ghcr.io/dannybouwers/trala:latest  # Primary source
-    # image: dannybouwers/trala:latest       # Secondary source (Docker Hub)
+    # Use GitHub Container Registry or build locally
+    # image: ghcr.io/rendyhd/trala:latest
     build: ../.
     container_name: trala
     restart: unless-stopped
